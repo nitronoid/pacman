@@ -1,4 +1,4 @@
 *.o
 *.png
 *.user
-CMakeFiles/*
+CMake*

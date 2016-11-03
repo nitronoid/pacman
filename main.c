@@ -111,10 +111,10 @@ void drawMaze(SDL_Rect block,SDL_Renderer *ren, SDL_Texture *tex, int pacposX, i
                 SDL_SetRenderDrawColor(ren, 0, 0, 255, 255);
                 break;
             case (2):
-                block.x+=(BLOCKSIZE/5);
-                block.y+=(BLOCKSIZE/5);
-                block.w=BLOCKSIZE/2;
-                block.h=BLOCKSIZE/2;
+                block.x+=(BLOCKSIZE/4);
+                block.y+=(BLOCKSIZE/4);
+                block.w=BLOCKSIZE/4;
+                block.h=BLOCKSIZE/4;
                 SDL_SetRenderDrawColor(ren, 255, 0, 0, 255);
                 break;
 
