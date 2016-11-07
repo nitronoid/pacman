@@ -13,13 +13,33 @@ const float scale = 0.08f;
 // the height of the screen taking into account the maze and block
 #define HEIGHT ROWS*BLOCKSIZE
 // an enumeration for direction to move USE more enums!
-enum DIRECTION{UP,DOWN,LEFT,RIGHT,NONE};
+enum DIRECTION{LEFT,RIGHT,UP,DOWN,NONE};
+enum BLOCK{BLACK,BLUE,RPILL,};
+enum BOOL{FALSE,TRUE};
+
+
+int checkVictory()
+{
+    int victory = TRUE;
+    int mazeY = (sizeof(map)/sizeof(map[0]));
+    int mazeX = (sizeof(map[0])/sizeof(map[0][0]));
+    for(int i = 0; i < mazeY; ++i)
+    {
+        for(int j = 0; j < mazeX; ++j)
+        {
+            if (map[i][j] == RPILL)
+                victory = FALSE;
+
+        }
+    }
+
+}
 
 int checkMove(int dir, int x, int y)
 {
-    int valid = 1;
+    int valid = TRUE;
     int a,b,c;
-    int step = BLOCKSIZE*scale*2;
+    int step = BLOCKSIZE*scale*5;
 
     switch (dir)
     {
@@ -28,69 +48,89 @@ int checkMove(int dir, int x, int y)
         a = (int)round((y - step - (BLOCKSIZE*scale))/((float)BLOCKSIZE));
         b = (int)round((x+step)/((float)BLOCKSIZE));
         c = (int)round((x-step)/((float)BLOCKSIZE));
-        if((map[a][b] == 1)||(map[a][c] == 1))
-            valid = 0;
+        if((map[a][b] == BLUE)||(map[a][c] == BLUE))
+            valid = FALSE;
         break;
     case DOWN:
         a = (int)round((y + step + (BLOCKSIZE*scale))/((float)BLOCKSIZE));
         b = (int)round((x+step)/((float)BLOCKSIZE));
         c = (int)round((x-step)/((float)BLOCKSIZE));
-        if((map[a][b] == 1)||(map[a][c] == 1))
-            valid = 0;
+        if((map[a][b] == BLUE)||(map[a][c] == BLUE))
+            valid = FALSE;
         break;
     case LEFT:
         a = (int)round((y+step)/((float)BLOCKSIZE));
         b = (int)round((y-step)/((float)BLOCKSIZE));
         c = (int)round((x - step - (BLOCKSIZE*scale))/((float)BLOCKSIZE));
-        if((map[a][c] == 1)||(map[b][c] == 1))
-            valid = 0;
+        if((map[a][c] == BLUE)||(map[b][c] == BLUE))
+            valid = FALSE;
         break;
     case RIGHT:
         a = (int)round((y+step)/((float)BLOCKSIZE));
         b = (int)round((y-step)/((float)BLOCKSIZE));
         c = (int)round((x + step + (BLOCKSIZE*scale))/((float)BLOCKSIZE));
-        if((map[a][c] == 1)||(map[b][c] == 1))
-            valid = 0;
+        if((map[a][c] == BLUE)||(map[b][c] == BLUE))
+            valid = FALSE;
+        break;
+    case NONE:
+        valid = TRUE;
         break;
 
     }
     return valid;
 }
+void checkPill(int *x, int *y, int pacDir)
+{
+    int endBound = (sizeof(map[0])/sizeof(map[0][0]))*BLOCKSIZE-BLOCKSIZE;
+    int a = (int)round(*y/((float)BLOCKSIZE));
+    int b = (int)round(*x/((float)BLOCKSIZE));
+    if(map[a][b] == RPILL)
+        map[a][b] = 0;
+    if((*x-BLOCKSIZE*0.5 <= 0)&&(pacDir == LEFT))
+        *x = endBound-BLOCKSIZE*0.25;
+    else if((*x+BLOCKSIZE*0.5 >= endBound)&&(pacDir == RIGHT))
+        *x = 0;
+}
 
 void movePac(int *pacposX, int *pacposY, int pacDir)
 {
-    int valid = 1;
+    int step = BLOCKSIZE*scale;
     switch (pacDir)
     {
 
     case UP :
-        *pacposY-=(BLOCKSIZE*scale);
+        *pacposY-=step;
         break;
     case DOWN :
-        *pacposY+=(BLOCKSIZE*scale);
+        *pacposY+=step;
         break;
     case RIGHT :
-        *pacposX+=(BLOCKSIZE*scale);
+        *pacposX+=step;
         break;
     case LEFT :
-        *pacposX-=(BLOCKSIZE*scale);
+        *pacposX-=step;
         break;
 
     }
 }
 
-void drawPacman(SDL_Rect block,SDL_Renderer *ren, SDL_Texture *tex, int pacposX, int pacposY, int pacDir)
+void drawPacman(SDL_Rect block,SDL_Renderer *ren, SDL_Texture *tex, int pacposX, int pacposY, int pacDir, int frameCount)
 {
     block.x=pacposX;
     block.y=pacposY;
     SDL_Rect pacman;
     pacman.w=22;
     pacman.h=20;
-    pacman.x=2*22;
-    pacman.y=3*20;
+    pacman.x=pacDir*22;
+    pacman.y=(frameCount/7)*20;
+    if(pacDir == NONE)
+    {
+        pacman.x=0;
+        pacman.y=0;
+    }
     SDL_RenderCopy(ren, tex,&pacman, &block);
 }
-void drawMaze(SDL_Rect block,SDL_Renderer *ren, SDL_Texture *tex, int pacposX, int pacposY, int pacDir)
+void drawMaze(SDL_Rect block,SDL_Renderer *ren, SDL_Texture *tex, int pacposX, int pacposY, int pacDir, int frameCount)
 {
     int mazeY = (sizeof(map)/sizeof(map[0]));
     int mazeX = (sizeof(map[0])/sizeof(map[0][0]));
@@ -111,8 +151,8 @@ void drawMaze(SDL_Rect block,SDL_Renderer *ren, SDL_Texture *tex, int pacposX, i
                 SDL_SetRenderDrawColor(ren, 0, 0, 255, 255);
                 break;
             case (2):
-                block.x+=(BLOCKSIZE/4);
-                block.y+=(BLOCKSIZE/4);
+                block.x+=(BLOCKSIZE/2);
+                block.y+=(BLOCKSIZE/2);
                 block.w=BLOCKSIZE/4;
                 block.h=BLOCKSIZE/4;
                 SDL_SetRenderDrawColor(ren, 255, 0, 0, 255);
@@ -123,7 +163,7 @@ void drawMaze(SDL_Rect block,SDL_Renderer *ren, SDL_Texture *tex, int pacposX, i
 
         }
     }
-    drawPacman(block, ren, tex, pacposX, pacposY, pacDir);
+    drawPacman(block, ren, tex, pacposX, pacposY, pacDir, frameCount);
 }
 
 
@@ -179,14 +219,17 @@ int main()
 
 
 
-    int quit=0;
+    int quit=FALSE;
     // now we are going to loop forever, process the keys then draw
 
     int pacposX = 13*BLOCKSIZE;
     int pacposY = 17*BLOCKSIZE;
-    int pacDir;
-    int move = 0;
-    while (quit !=1)
+    int pacDir, tempDir, lastDir = NONE;
+
+    int move, moveBckUp, movePrdct, frameCount, keyPressed = 0;
+
+
+    while (quit !=TRUE)
     {
 
         SDL_Event event;
@@ -195,14 +238,19 @@ int main()
         {
             // look for the x of the window being clicked and exit
             if (event.type == SDL_QUIT)
-                quit = 1;
+                quit = TRUE;
             // check for a key down
+            keyPressed = FALSE;
+
             if (event.type == SDL_KEYDOWN)
             {
+                tempDir = pacDir;
+                lastDir = NONE;
+                keyPressed = TRUE;
                 switch (event.key.keysym.sym)
                 {
                 case SDLK_ESCAPE :
-                    quit=1;
+                    quit=TRUE;
                     break;
                 case SDLK_UP :
                     pacDir = UP;
@@ -234,22 +282,42 @@ int main()
             }
         }
 
+        checkPill(&pacposX, &pacposY, pacDir);
         move = checkMove(pacDir,pacposX,pacposY);
-        if(move == 1)
+        if(lastDir!=NONE)
+            movePrdct = checkMove(lastDir,pacposX,pacposY);
+        moveBckUp = checkMove(tempDir,pacposX,pacposY);
+        if((movePrdct == TRUE)&&(keyPressed == FALSE))
         {
-            //usleep(20000);
+            pacDir = lastDir;
             movePac(&pacposX, &pacposY, pacDir);
         }
+        else if(move == TRUE)
+        {
+            movePac(&pacposX, &pacposY, pacDir);
+        }
+        else if((moveBckUp == TRUE)&&(keyPressed == TRUE))
+        {
+            lastDir = pacDir;
+            pacDir = tempDir;
+            movePac(&pacposX, &pacposY, pacDir);
+        }
+
         // now we clear the screen (will use the clear colour set previously)
         SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
         SDL_RenderClear(ren);
         // we will create an SDL_Rect structure and draw a block
         SDL_Rect block;
         // set the block position
-        drawMaze(block, ren, tex, pacposX, pacposY, pacDir);
+        drawMaze(block, ren, tex, pacposX, pacposY, pacDir, frameCount);
         // Up until now everything was drawn behind the scenes.
         // This will show the new, red contents of the window.
+
+        quit = checkVictory();
         SDL_RenderPresent(ren);
+        frameCount++;
+        if(frameCount > 28)
+            frameCount = 0;
 
     }
 
