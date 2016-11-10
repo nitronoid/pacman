@@ -16,6 +16,14 @@ const float scale = 0.08f;
 enum DIRECTION{LEFT,RIGHT,UP,DOWN,NONE};
 enum BLOCK{BLACK,BLUE,RPILL,};
 enum BOOL{FALSE,TRUE};
+typedef struct
+{
+    int x;
+    int Y;
+    int dir;
+    int temp;
+    int last;
+}pacman;
 
 
 int checkVictory()
@@ -32,7 +40,7 @@ int checkVictory()
 
         }
     }
-
+    return victory;
 }
 
 int checkMove(int dir, int x, int y)
@@ -114,24 +122,26 @@ void movePac(int *pacposX, int *pacposY, int pacDir)
     }
 }
 
-void drawPacman(SDL_Rect block,SDL_Renderer *ren, SDL_Texture *tex, int pacposX, int pacposY, int pacDir, int frameCount)
+void drawPacman(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, int frameCount)
 {
-    block.x=pacposX;
-    block.y=pacposY;
+    SDL_Rect block;
+    block.x=x;
+    block.y=y;
     SDL_Rect pacman;
     pacman.w=22;
     pacman.h=20;
-    pacman.x=pacDir*22;
+    pacman.x=dir*22;
     pacman.y=(frameCount/7)*20;
-    if(pacDir == NONE)
+    if(dir == NONE)
     {
         pacman.x=0;
         pacman.y=0;
     }
     SDL_RenderCopy(ren, tex,&pacman, &block);
 }
-void drawMaze(SDL_Rect block,SDL_Renderer *ren, SDL_Texture *tex, int pacposX, int pacposY, int pacDir, int frameCount)
+void drawMaze(SDL_Renderer *ren)
 {
+    SDL_Rect block;
     int mazeY = (sizeof(map)/sizeof(map[0]));
     int mazeX = (sizeof(map[0])/sizeof(map[0][0]));
     for(int i = 0; i < mazeY; ++i)
@@ -163,7 +173,7 @@ void drawMaze(SDL_Rect block,SDL_Renderer *ren, SDL_Texture *tex, int pacposX, i
 
         }
     }
-    drawPacman(block, ren, tex, pacposX, pacposY, pacDir, frameCount);
+    ;
 }
 
 
@@ -199,18 +209,13 @@ int main()
     // however we will overdraw all of this so only for reference
     SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
 
-    // SDL image is an abstraction for all images
     SDL_Surface *image;
-    // we are going to use the extension SDL_image library to load a png, documentation can be found here
-    // http://www.libsdl.org/projects/SDL_image/
     image=IMG_Load("pacsprite.png");
     if(!image)
     {
         printf("IMG_Load: %s\n", IMG_GetError());
         return EXIT_FAILURE;
     }
-    // SDL texture converts the image to a texture suitable for SDL rendering  / blitting
-    // once we have the texture it will be store in hardware and we don't need the image data anymore
 
     SDL_Texture *tex = 0;
     tex = SDL_CreateTextureFromSurface(ren, image);
@@ -218,14 +223,10 @@ int main()
     SDL_FreeSurface(image);
 
 
-
     int quit=FALSE;
     // now we are going to loop forever, process the keys then draw
 
-    int pacposX = 13*BLOCKSIZE;
-    int pacposY = 17*BLOCKSIZE;
-    int pacDir, tempDir, lastDir = NONE;
-
+    pacman pac = {13*BLOCKSIZE,17*BLOCKSIZE,NONE,NONE,NONE};
     int move, moveBckUp, movePrdct, frameCount, keyPressed = 0;
 
 
@@ -238,14 +239,14 @@ int main()
         {
             // look for the x of the window being clicked and exit
             if (event.type == SDL_QUIT)
-                quit = TRUE;
+                quit = TRUE;//quit =
             // check for a key down
             keyPressed = FALSE;
 
             if (event.type == SDL_KEYDOWN)
             {
-                tempDir = pacDir;
-                lastDir = NONE;
+                pac.temp = pac.dir;
+                pac.last = NONE;
                 keyPressed = TRUE;
                 switch (event.key.keysym.sym)
                 {
@@ -253,28 +254,20 @@ int main()
                     quit=TRUE;
                     break;
                 case SDLK_UP :
-                    pacDir = UP;
-                    break;
                 case SDLK_w :
-                    pacDir = UP;
+                    pac.dir = UP;
                     break;
                 case SDLK_DOWN :
-                    pacDir = DOWN;
-                    break;
                 case SDLK_s :
-                    pacDir = DOWN;
+                    pac.dir = DOWN;
                     break;
                 case SDLK_RIGHT :
-                    pacDir = RIGHT;
-                    break;
                 case SDLK_d :
-                    pacDir = RIGHT;
+                    pac.dir = RIGHT;
                     break;
                 case SDLK_LEFT :
-                    pacDir = LEFT;
-                    break;
                 case SDLK_a :
-                    pacDir = LEFT;
+                    pac.dir = LEFT;
                     break;
 
                 }
@@ -282,38 +275,46 @@ int main()
             }
         }
 
-        checkPill(&pacposX, &pacposY, pacDir);
-        move = checkMove(pacDir,pacposX,pacposY);
-        if(lastDir!=NONE)
-            movePrdct = checkMove(lastDir,pacposX,pacposY);
-        moveBckUp = checkMove(tempDir,pacposX,pacposY);
+        checkPill(&pac.x, &pac.Y, pac.dir);
+
+        move = checkMove(pac.dir,pac.x,pac.Y);
+
+        if(pac.last!=NONE)
+            movePrdct = checkMove(pac.last,pac.x,pac.Y);
+
+        moveBckUp = checkMove(pac.temp,pac.x,pac.Y);
+
         if((movePrdct == TRUE)&&(keyPressed == FALSE))
         {
-            pacDir = lastDir;
-            movePac(&pacposX, &pacposY, pacDir);
+            pac.dir = pac.last;
+            movePac(&pac.x, &pac.Y, pac.dir);
         }
         else if(move == TRUE)
         {
-            movePac(&pacposX, &pacposY, pacDir);
+            movePac(&pac.x, &pac.Y, pac.dir);
         }
         else if((moveBckUp == TRUE)&&(keyPressed == TRUE))
         {
-            lastDir = pacDir;
-            pacDir = tempDir;
-            movePac(&pacposX, &pacposY, pacDir);
+            pac.last = pac.dir;
+            pac.dir = pac.temp;
+            movePac(&pac.x, &pac.Y, pac.dir);
         }
 
         // now we clear the screen (will use the clear colour set previously)
         SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
         SDL_RenderClear(ren);
         // we will create an SDL_Rect structure and draw a block
-        SDL_Rect block;
+
         // set the block position
-        drawMaze(block, ren, tex, pacposX, pacposY, pacDir, frameCount);
+        drawMaze(ren);
+        drawPacman(ren, tex, pac.x, pac.Y, pac.dir, frameCount);
         // Up until now everything was drawn behind the scenes.
         // This will show the new, red contents of the window.
 
-        quit = checkVictory();
+        /*
+        if(quit != TRUE)
+            quit = checkVictory();
+        */
         SDL_RenderPresent(ren);
         frameCount++;
         if(frameCount > 28)
