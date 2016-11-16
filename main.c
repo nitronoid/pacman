@@ -42,7 +42,7 @@ void moveSprite(int *x, int *y, int dir);
 void moveShadow(int *x, int *y, int *dir, int pacX, int pacY, BOOL *la);
 void moveSpeedy(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int pacDir);
 void moveBashful(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int pacDir, int shadX, int shadY);
-void movePokey(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, BOOL scatter);
+void movePokey(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int *tempX, int *tempY, BOOL *loop);
 void moveFrightened(int *x, int *y, int *dir);
 void movePac(int *dir, int *last, int *temp, int *x, int *y, int keyPressed);
 void drawShadow(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir);
@@ -123,6 +123,9 @@ int main()
     ghost pokey = {14*BLOCKSIZE,14*BLOCKSIZE,LEFT,TRUE,TRUE};
     pacman pac = {13*BLOCKSIZE,17*BLOCKSIZE+1,NONE,NONE,NONE};
     BOOL keyPressed = FALSE;
+    BOOL loop = FALSE;
+    int pTempX = 0;
+    int pTempY = 0;
     int frameCount = 0;
     int aiMode = 0;
     int msec;
@@ -185,7 +188,7 @@ int main()
 
         movePac(&pac.dir,&pac.last,&pac.temp,&pac.x,&pac.Y, keyPressed);
 
-        if(aiMode < 7)
+        if(aiMode <= 7)
         {
             diff = clock() - start;
             msec = (diff*1000/CLOCKS_PER_SEC);
@@ -198,14 +201,14 @@ int main()
                 moveShadow(&shadow.x,&shadow.Y,&shadow.dir, 30*BLOCKSIZE,0,&shadow.l);
                 moveSpeedy(&speedy.x,&speedy.Y,&speedy.dir,0,0,&speedy.l, pac.dir);
                 moveBashful(&bashful.x,&bashful.Y,&bashful.dir,30*BLOCKSIZE,28*BLOCKSIZE,&bashful.l, pac.dir, shadow.x, shadow.Y);
-                movePokey(&pokey.x,&pokey.Y,&pokey.dir, 0,28*BLOCKSIZE,&pokey.l,TRUE);
+                movePokey(&pokey.x,&pokey.Y,&pokey.dir, 0,28*BLOCKSIZE,&pokey.l,&pTempX, &pTempY, &loop);
             }
             else
             {
                 moveShadow(&shadow.x,&shadow.Y,&shadow.dir, pac.x,pac.Y,&shadow.l);
                 moveSpeedy(&speedy.x,&speedy.Y,&speedy.dir,pac.x,pac.Y,&speedy.l, pac.dir);
                 moveBashful(&bashful.x,&bashful.Y,&bashful.dir,pac.x,pac.Y,&bashful.l, pac.dir, shadow.x, shadow.Y);
-                movePokey(&pokey.x,&pokey.Y,&pokey.dir, pac.x,pac.Y,&pokey.l,FALSE);
+                movePokey(&pokey.x,&pokey.Y,&pokey.dir, pac.x,pac.Y,&pokey.l,&pTempX, &pTempY, &loop);
             }
         }
         //moveFrightened(&shadow.x,&shadow.Y,&shadow.dir);
@@ -446,17 +449,22 @@ void moveShadow(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la)
     moveSprite(x,y,*dir);
 }
 
-void movePokey(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, BOOL scatter)
+void movePokey(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int *tempX, int *tempY, BOOL *loop)
 {
-    if(scatter)
+    int distX = abs(pacX-*x);
+    int distY = abs(pacY-*y);
+    int dist = distX + distY;
+    if((dist < 8*BLOCKSIZE)&&!(*loop))
     {
-        int distX = pacX-*x;
-        int distY = pacY-*y;
-        if(distX+distY > 8*BLOCKSIZE)
-        {
-            pacX = *x;
-            pacY = *y;
-        }
+        *loop = TRUE;
+        *tempX = *x;
+        *tempY = *y;
+    }
+    if(*loop)
+    {
+        *loop = FALSE;
+        pacX = *tempX;
+        pacY = *tempY;
     }
     int a = 0;
     int temp;
@@ -902,7 +910,6 @@ void drawPacman(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, int 
     pacman.h=20;
     pacman.x=dir*22;
     pacman.y=(frameCount/7)*20;
-    printf("%d\t%d\n",dir,frameCount);
     if(dir == NONE)
     {
         pacman.x=0;
