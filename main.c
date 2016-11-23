@@ -60,12 +60,31 @@ void drawMaze(SDL_Renderer *ren, SDL_Texture *btex);
 void checkTeleport(int *x, int dir);
 int pillCount();
 int reverseDir(int dir);
+void reset( BOOL *keyPressed,
+            BOOL *begin,
+            BOOL *loop,
+            BOOL *pokeyMove,
+            BOOL *bashfulMove,
+            BOOL *chngDir,
+            BOOL *frightened,
+            BOOL *lifeDeduct,
+            int *pTempX,
+            int *pTempY,
+            int *frameCount,
+            int *deathCount,
+            int *aiMode,
+            ghost *shadow,
+            ghost *speedy,
+            ghost *bashful,
+            ghost *pokey,
+            pacman *pac       );
 
 int main()
 {
     //fixMap();
     srand(time(NULL));
     clock_t start = clock(), diff;
+    clock_t ldiff = clock();
     // initialise SDL and check that it worked otherwise exit
     // see here for details http://wiki.libsdl.org/CategoryAPI
     if (SDL_Init(SDL_INIT_EVERYTHING) == -1)
@@ -186,6 +205,7 @@ int main()
     BOOL bashfulMove = FALSE;
     BOOL chngDir = TRUE;
     BOOL frightened = FALSE;
+    BOOL lifeDeduct = FALSE;
     clock_t frightenedClock;
     int pTempX = 0;
     int pTempY = 0;
@@ -194,6 +214,7 @@ int main()
     int aiMode = 0;
     int msec;
     int moveMode[7]={7,27,34,54,59,79,84};
+    int lives = 3;
 
     while (quit !=TRUE)
     {
@@ -412,14 +433,52 @@ int main()
         else
             drawGhost(ren,gtex,pokey.x,pokey.Y,pokey.dir, FALSE, frightenedClock,0);
         if(pac.alive)
-            drawPacman(ren, ptex, pac.x, pac.Y, pac.dir, frameCount);
-        else
         {
+            lifeDeduct = TRUE;
+            drawPacman(ren, ptex, pac.x, pac.Y, pac.dir, frameCount);
+        }
+        else if (lives > 0)
+        {
+            diff = clock() - ldiff;
+            msec = (diff*1000/CLOCKS_PER_SEC);
+            printf("%d\n",msec);
+
+            if((msec >= 125)&&!lifeDeduct)
+                reset(&keyPressed,
+                      &begin,
+                      &loop,
+                      &pokeyMove,
+                      &bashfulMove,
+                      &chngDir,
+                      &frightened,
+                      &lifeDeduct,
+                      &pTempX,
+                      &pTempY,
+                      &frameCount,
+                      &deathCount,
+                      &aiMode,
+                      &shadow,
+                      &speedy,
+                      &bashful,
+                      &pokey,
+                      &pac);
             drawDeadPac(ren, dtex, pac.x, pac.Y, pac.dir, deathCount);
-            drawGameOver(ren,etex);
+            if(lifeDeduct)
+            {
+                printf("TRUE");
+                ldiff = clock();
+                lives--;
+            }
+            lifeDeduct = FALSE;
         }
         if(!begin)
             drawStart(ren,stex);
+
+        if(lives <= 0)
+        {
+            drawGameOver(ren,etex);
+            drawDeadPac(ren, dtex, pac.x, pac.Y, pac.dir, deathCount);
+        }
 
         if(quit != TRUE)
             quit = checkVictory();
@@ -1080,7 +1139,8 @@ void movePac(int *dir, int *last, int *temp, int *x, int *y, int keyPressed)
 void drawGhost(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, BOOL frightened, clock_t fClock, int ghostType)
 {
     clock_t diff = clock() - fClock;
-    int msec = (diff*1000/CLOCKS_PER_SEC);
+    int msec = (diff*100/CLOCKS_PER_SEC);
+    printf("%d\n",msec);
     int desc = 0;
     SDL_Rect block;
     block.x=x;
@@ -1094,10 +1154,11 @@ void drawGhost(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, BOOL 
     ghost.y=dir*20;
     if(frightened)
     {
-        if(msec >= 400)
+        if(msec >= 40)
         {
-           desc = msec-((int)(msec/50))*50;
-           if(desc > 25)
+
+           desc = msec%4;
+           if(desc > 1)
            {
                ghost.x=5*22+5;
                ghost.y=1*20;
@@ -1288,4 +1349,82 @@ void drawDeadPac(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, int
     SDL_RenderCopy(ren, tex,&pacman, &block);
 }
 
+void reset( BOOL *keyPressed,
+            BOOL *begin,
+            BOOL *loop,
+            BOOL *pokeyMove,
+            BOOL *bashfulMove,
+            BOOL *chngDir,
+            BOOL *frightened,
+            BOOL *lifeDeduct,
+            int *pTempX,
+            int *pTempY,
+            int *frameCount,
+            int *deathCount,
+            int *aiMode,
+            ghost *shadow,
+            ghost *speedy,
+            ghost *bashful,
+            ghost *pokey,
+            pacman *pac       )
+{
+
+    shadow->x=13*BLOCKSIZE;
+    shadow->Y=11*BLOCKSIZE;
+    shadow->dir=LEFT;
+    shadow->alive=TRUE;
+    shadow->gate=TRUE;
+    shadow->l=TRUE;
+    shadow->tx=0;
+    shadow->ty=0;
+
+    speedy->x=13*BLOCKSIZE;
+    speedy->Y=13*BLOCKSIZE;
+    speedy->dir=UP;
+    speedy->alive=TRUE;
+    speedy->gate=TRUE;
+    speedy->l=TRUE;
+    speedy->tx=0;
+    speedy->ty=0;
+
+    bashful->x=14*BLOCKSIZE;
+    bashful->Y=13*BLOCKSIZE;
+    bashful->dir=LEFT;
+    bashful->alive=TRUE;
+    bashful->gate=TRUE;
+    bashful->l=TRUE;
+    bashful->tx=0;
+    bashful->ty=0;
+
+    pokey->x=14*BLOCKSIZE;
+    pokey->Y=13*BLOCKSIZE;
+    pokey->dir=LEFT;
+    pokey->alive=TRUE;
+    pokey->gate=TRUE;
+    pokey->l=TRUE;
+    pokey->tx=0;
+    pokey->ty=0;
+
+    pac->x=13*BLOCKSIZE;
+    pac->Y=17*BLOCKSIZE+1;
+    pac->dir=NONE;
+    pac->last=NONE;
+    pac->temp=NONE;
+    pac->alive=TRUE;
+
+    *keyPressed = FALSE;
+    *begin = FALSE;
+    *loop = FALSE;
+    *pokeyMove = FALSE;
+    *bashfulMove = FALSE;
+    *chngDir = TRUE;
+    *frightened = FALSE;
+    *lifeDeduct = FALSE;
+    *pTempX = 0;
+    *pTempY = 0;
+    *frameCount = 0;
+    *deathCount = 0;
+    *aiMode = 0;
+
+}
 
