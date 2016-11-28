@@ -41,8 +41,8 @@ typedef struct
 
 BOOL checkVictory();
 BOOL checkMove(int dir, int x, int y, BOOL pac);
-BOOL checkDeath(int ghostX,int ghostY,int pacX,int pacY);
-BOOL checkGhost(int x, int y, int pacX,int pacY,BOOL alive);
+BOOL checkDeath(ghost *enemy, pacman *pac);
+BOOL checkGhost(ghost *enemy, pacman *pac);
 void drawStart(SDL_Renderer *ren, SDL_Texture *tex);
 void drawGameOver(SDL_Renderer *ren, SDL_Texture *tex);
 void checkPill(int *x, int *y, BOOL *frightened, struct timespec *fStart, int aiMode, int *t);
@@ -52,10 +52,10 @@ void moveSpeedy(ghost *enemy,int pacX,int pacY, int pacDir, int frameCount);
 void moveBashful(ghost *enemy,int pacX,int pacY, int pacDir, int shadX, int shadY, int frameCount);
 void movePokey(ghost *enemy,int pacX,int pacY, int *tempX, int *tempY, BOOL *loop, int frameCount);
 void moveFrightened(ghost *enemy, int frameCount);
-void movePac(int *dir, int *last, int *temp, int *x, int *y, int keyPressed,int frameCount);
-void drawGhost(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, BOOL frightened, struct timespec fClock, int ghostType, int frameCount);
-void drawPacman(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, int frameCount);
-void drawDeadPac(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, int frameCount);
+void movePac(pacman *pac, int keyPressed,int frameCount);
+void drawGhost(SDL_Renderer *ren, SDL_Texture *tex, ghost *enemy, BOOL frightened, struct timespec fClock, int ghostType, int frameCount);
+void drawPacman(SDL_Renderer *ren, SDL_Texture *tex, pacman *pac, int frameCount);
+void drawDeadPac(SDL_Renderer *ren, SDL_Texture *tex, pacman *pac, int frameCount);
 void drawMaze(SDL_Renderer *ren, SDL_Texture *btex, SDL_Texture *wtex);
 void checkTeleport(int *x, int dir);
 int pillCount();
@@ -290,33 +290,33 @@ int main()
         if(!frightened)
         {
             if(pac.alive&&shadow.alive)
-                pac.alive = checkDeath(shadow.x,shadow.Y,pac.x,pac.Y);
+                pac.alive = checkDeath(&shadow, &pac);
             if(pac.alive&&speedy.alive)
-                pac.alive = checkDeath(speedy.x,speedy.Y,pac.x,pac.Y);
+                pac.alive = checkDeath(&speedy, &pac);
             if(pac.alive&&bashful.alive)
-                pac.alive = checkDeath(bashful.x,bashful.Y,pac.x,pac.Y);
+                pac.alive = checkDeath(&bashful, &pac);
             if(pac.alive&&pokey.alive)
-                pac.alive = checkDeath(pokey.x,pokey.Y,pac.x,pac.Y);
+                pac.alive = checkDeath(&pokey, &pac);
         }
         else
         {
-            shadow.alive = checkGhost(shadow.x,shadow.Y,pac.x,pac.Y,shadow.alive);
-            speedy.alive = checkGhost(speedy.x,speedy.Y,pac.x,pac.Y,speedy.alive);
-            bashful.alive = checkGhost(bashful.x,bashful.Y,pac.x,pac.Y, bashful.alive);
-            pokey.alive = checkGhost(pokey.x,pokey.Y,pac.x,pac.Y, pokey.alive);
+            shadow.alive = checkGhost(&shadow, &pac);
+            speedy.alive = checkGhost(&speedy, &pac);
+            bashful.alive = checkGhost(&bashful, &pac);
+            pokey.alive = checkGhost(&pokey, &pac);
 
         }
         if(!shadow.alive)
-            shadow.alive = checkGhost(shadow.x,shadow.Y,pac.x,pac.Y,shadow.alive);
+            shadow.alive = checkGhost(&shadow, &pac);
         if(!speedy.alive)
-            speedy.alive = checkGhost(speedy.x,speedy.Y,pac.x,pac.Y,speedy.alive);
+            speedy.alive = checkGhost(&speedy, &pac);
         if(!bashful.alive)
-            bashful.alive = checkGhost(bashful.x,bashful.Y,pac.x,pac.Y, bashful.alive);
+            bashful.alive = checkGhost(&bashful, &pac);
         if(!pokey.alive)
-            pokey.alive = checkGhost(pokey.x,pokey.Y,pac.x,pac.Y, pokey.alive);
+            pokey.alive = checkGhost(&pokey, &pac);
         if(begin&&pac.alive)
         {
-            movePac(&pac.dir,&pac.last,&pac.temp,&pac.x,&pac.Y, keyPressed,frameCount);
+            movePac(&pac, keyPressed,frameCount);
 
             if((pillCount() <= 228)&&!frightened)
                 bashfulMove = TRUE;
@@ -442,23 +442,23 @@ int main()
         if(pac.alive)
         {
             if(shadow.alive)
-                drawGhost(ren, gtex, shadow.x, shadow.Y, shadow.dir, frightened, frightenedClock,4,frameCount);
+                drawGhost(ren, gtex, &shadow, frightened, frightenedClock,4,frameCount);
             else
-                drawGhost(ren, gtex, shadow.x, shadow.Y, shadow.dir, FALSE, frightenedClock,0,0);
+                drawGhost(ren, gtex, &shadow, FALSE, frightenedClock,0,0);
             if(speedy.alive)
-                drawGhost(ren, gtex, speedy.x, speedy.Y, speedy.dir, frightened, frightenedClock,2,frameCount);
+                drawGhost(ren, gtex, &speedy, frightened, frightenedClock,2,frameCount);
             else
-                drawGhost(ren, gtex, speedy.x, speedy.Y, speedy.dir, FALSE, frightenedClock,0,0);
+                drawGhost(ren, gtex, &speedy, FALSE, frightenedClock,0,0);
             if(bashful.alive)
-                drawGhost(ren, gtex, bashful.x, bashful.Y, bashful.dir, frightened, frightenedClock,3,frameCount);
+                drawGhost(ren, gtex, &bashful, frightened, frightenedClock,3,frameCount);
             else
-                drawGhost(ren, gtex, bashful.x, bashful.Y, bashful.dir, FALSE, frightenedClock,0,0);
+                drawGhost(ren, gtex, &bashful, FALSE, frightenedClock,0,0);
             if(pokey.alive)
-                drawGhost(ren,gtex,pokey.x,pokey.Y,pokey.dir, frightened, frightenedClock,1,frameCount);
+                drawGhost(ren, gtex, &pokey, frightened, frightenedClock,1,frameCount);
             else
-                drawGhost(ren,gtex,pokey.x,pokey.Y,pokey.dir, FALSE, frightenedClock,0,0);
+                drawGhost(ren, gtex, &pokey, FALSE, frightenedClock,0,0);
             lifeDeduct = TRUE;
-            drawPacman(ren, ptex, pac.x, pac.Y, pac.dir, frameCount);
+            drawPacman(ren, ptex, &pac, frameCount);
         }
         else if (lives > 0)
         {
@@ -488,7 +488,7 @@ int main()
                       &pac);
                 clock_gettime(CLOCK_REALTIME, &start);
             }
-            drawDeadPac(ren, dtex, pac.x, pac.Y, pac.dir, deathCount);
+            drawDeadPac(ren, dtex, &pac, deathCount);
             if(lifeDeduct)
             {
                 clock_gettime(CLOCK_REALTIME, &lEnd);
@@ -502,7 +502,7 @@ int main()
         if(lives <= 0)
         {
             drawGameOver(ren,etex);
-            drawDeadPac(ren, dtex, pac.x, pac.Y, pac.dir, deathCount);
+            drawDeadPac(ren, dtex, &pac, deathCount);
         }
 
         if(quit != TRUE)
@@ -1126,45 +1126,45 @@ void moveSpeedy(ghost *enemy,int pacX,int pacY, int pacDir, int frameCount)
     moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE,frameCount);
 }
 
-void movePac(int *dir, int *last, int *temp, int *x, int *y, int keyPressed,int frameCount)
+void movePac( pacman *pac, int keyPressed,int frameCount)
 {
     BOOL move, moveBckUp, movePrdct = FALSE;
-    move = checkMove(*dir,*x,*y,TRUE);
+    move = checkMove(pac->dir,pac->x,pac->Y,TRUE);
 
-    if(*last!=NONE)
-        movePrdct = checkMove(*last,*x,*y,TRUE);
+    if(pac->last!=NONE)
+        movePrdct = checkMove(pac->last,pac->x,pac->Y,TRUE);
     else
         movePrdct = FALSE;
 
-    moveBckUp = checkMove(*temp,*x,*y,TRUE);
+    moveBckUp = checkMove(pac->temp,pac->x,pac->Y,TRUE);
 
     if((movePrdct == TRUE)&&(keyPressed == FALSE))
     {
-        *dir = *last;
-        *last = NONE;
-        *temp = NONE;
-        moveSprite(x, y, *dir, TRUE, FALSE,frameCount);
+        pac->dir = pac->last;
+        pac->last = NONE;
+        pac->temp = NONE;
+        moveSprite(&pac->x, &pac->Y, pac->dir, TRUE, FALSE,frameCount);
     }
     else if(move == TRUE)
     {
-        moveSprite(x, y, *dir, TRUE, FALSE,frameCount);
+        moveSprite(&pac->x, &pac->Y, pac->dir, TRUE, FALSE,frameCount);
     }
     else if(moveBckUp == TRUE)
     {
-        *last = *dir;
-        *dir = *temp;
-        moveSprite(x, y, *dir, TRUE, FALSE,frameCount);
+        pac->last = pac->dir;
+        pac->dir = pac->temp;
+        moveSprite(&pac->x, &pac->Y, pac->dir, TRUE, FALSE,frameCount);
     }
     else
     {
-        *dir = NONE;
-        *last = NONE;
-        *temp = NONE;
+        pac->dir = NONE;
+        pac->last = NONE;
+        pac->temp = NONE;
     }
 
 }
 
-void drawGhost(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, BOOL frightened, struct timespec fClock, int ghostType, int frameCount)
+void drawGhost(SDL_Renderer *ren, SDL_Texture *tex, ghost *enemy, BOOL frightened, struct timespec fClock, int ghostType, int frameCount)
 {
     struct timespec start;
     clock_gettime(CLOCK_REALTIME, &start);
@@ -1175,15 +1175,15 @@ void drawGhost(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, BOOL 
     if((frameCount/15) == 0)
         anim = 0;
     SDL_Rect block;
-    block.x=x;
-    block.y=y;
+    block.x=enemy->x;
+    block.y=enemy->Y;
     block.w=BLOCKSIZE-1;
     block.h=BLOCKSIZE-1;
-    SDL_Rect ghost;
-    ghost.w=BLOCKSIZE*2;
-    ghost.h=BLOCKSIZE*2;
-    ghost.x=ghostType*(BLOCKSIZE*2)+anim;
-    ghost.y=dir*(BLOCKSIZE*2);
+    SDL_Rect ghosty;
+    ghosty.w=BLOCKSIZE*2;
+    ghosty.h=BLOCKSIZE*2;
+    ghosty.x=ghostType*(BLOCKSIZE*2)+anim;
+    ghosty.y=enemy->dir*(BLOCKSIZE*2);
     if(frightened)
     {
         if(diff >= 5)
@@ -1192,37 +1192,37 @@ void drawGhost(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, BOOL 
            desc = (int)(diff*10)%2;
            if(desc == 1)
            {
-               ghost.x=5*(BLOCKSIZE*2)+anim;
-               ghost.y=BLOCKSIZE*2;
+               ghosty.x=5*(BLOCKSIZE*2)+anim;
+               ghosty.y=BLOCKSIZE*2;
            }
            else
            {
-               ghost.x=5*(BLOCKSIZE*2)+anim;
-               ghost.y=0;
+               ghosty.x=5*(BLOCKSIZE*2)+anim;
+               ghosty.y=0;
            }
         }
         else
         {
-        ghost.x=5*(BLOCKSIZE*2)+anim;
-        ghost.y=BLOCKSIZE*2;
+        ghosty.x=5*(BLOCKSIZE*2)+anim;
+        ghosty.y=BLOCKSIZE*2;
         }
     }
-    SDL_RenderCopy(ren, tex,&ghost, &block);
+    SDL_RenderCopy(ren, tex,&ghosty, &block);
 }
 
-void drawPacman(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, int frameCount)
+void drawPacman(SDL_Renderer *ren, SDL_Texture *tex, pacman *pac, int frameCount)
 {
     SDL_Rect block;
-    block.x=x;
-    block.y=y;
+    block.x=pac->x;
+    block.y=pac->Y;
     block.w=BLOCKSIZE;
     block.h=BLOCKSIZE;
     SDL_Rect pacman;
     pacman.w=BLOCKSIZE*2;
     pacman.h=BLOCKSIZE*2;
-    pacman.x=dir*(BLOCKSIZE*2);
+    pacman.x=pac->dir*(BLOCKSIZE*2);
     pacman.y=(frameCount/7)*(BLOCKSIZE*2);
-    if(dir == NONE)
+    if(pac->dir == NONE)
     {
         pacman.x=0;
         pacman.y=0;
@@ -1340,28 +1340,28 @@ int reverseDir(int dir)
     return NONE;
 }
 
-BOOL checkDeath(int ghostX,int ghostY,int pacX,int pacY)
+BOOL checkDeath(ghost *enemy, pacman *pac)
 {
     int diff = 3*BLOCKSIZE/4;
-    if((abs(pacX-ghostX)<=diff)&&(abs(pacY-ghostY)<=diff))
+    if((abs((pac->x)-(enemy->x))<=diff)&&(abs((pac->Y)-(enemy->Y))<=diff))
         return FALSE;
     else
         return TRUE;
 }
 
-BOOL checkGhost(int x, int y, int pacX,int pacY, BOOL alive)
+BOOL checkGhost(ghost *enemy,pacman *pac)
 {
     int diff = 3*BLOCKSIZE/4;
-    if(alive)
+    if(enemy->alive)
     {
-        if((abs(pacX-x)<=diff)&&(abs(pacY-y)<=diff))
+        if((abs(pac->x-enemy->x)<=diff)&&(abs(pac->Y-enemy->Y)<=diff))
             return FALSE;
         else
             return TRUE;
     }
     else
     {
-        if((abs(y-11*BLOCKSIZE)<=diff)&&(abs(x-13*BLOCKSIZE)<=diff))
+        if((abs(enemy->Y-11*BLOCKSIZE)<=diff)&&(abs(enemy->x-13*BLOCKSIZE)<=diff))
             return TRUE;
         else
             return FALSE;
@@ -1369,19 +1369,19 @@ BOOL checkGhost(int x, int y, int pacX,int pacY, BOOL alive)
 
 }
 
-void drawDeadPac(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, int frameCount)
+void drawDeadPac(SDL_Renderer *ren, SDL_Texture *tex, pacman *pac, int frameCount)
 {
     SDL_Rect block;
-    block.x=x;
-    block.y=y;
+    block.x=pac->x;
+    block.y=pac->Y;
     block.w=BLOCKSIZE-1;
     block.h=BLOCKSIZE-1;
     SDL_Rect pacman;
     pacman.w=22;
     pacman.h=20;
-    pacman.x=dir*22;
+    pacman.x=pac->dir*22;
     pacman.y=(frameCount/4)*20;
-    if(dir == NONE)
+    if(pac->dir == NONE)
     {
         pacman.x=0;
     }
