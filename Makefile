@@ -12,7 +12,7 @@ MAKEFILE      = Makefile
 
 CC            = clang
 CXX           = clang++
-DEFINES       = -DQT_QML_DEBUG -DQT_CORE_LIB
+DEFINES       = -D_XOPEN_SOURCE=500 -DQT_QML_DEBUG -DQT_CORE_LIB
 CFLAGS        = -pipe -std=c99 -I/usr/local/include/SDL2 -D_REENTRANT -g -Wall -W -D_REENTRANT -fPIC $(DEFINES)
 CXXFLAGS      = -pipe -g -std=gnu++11 -Wall -W -D_REENTRANT -fPIC $(DEFINES)
 INCPATH       = -I. -isystem /usr/local/include/SDL2 -I/opt/Qt5.7.0/5.7/gcc_64/include -I/opt/Qt5.7.0/5.7/gcc_64/include/QtCore -I. -I/opt/Qt5.7.0/5.7/gcc_64/mkspecs/linux-clang

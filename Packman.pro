@@ -11,6 +11,7 @@ INCLUDEPATH+=/usr/local/include/SDL2
 LIBS+=$$system(sdl2-config  --libs)
 message(output from sdl2-config --libs added to LIB=$$LIBS)
 LIBS+=-lSDL2_image
+DEFINES+=_XOPEN_SOURCE=500
 macx:DEFINES+=MAC_OS_X_VERSION_MIN_REQUIRED=1060
 CONFIG += console
 CONFIG -= app_bundle
