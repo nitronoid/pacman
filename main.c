@@ -1155,6 +1155,12 @@ void movePac(int *dir, int *last, int *temp, int *x, int *y, int keyPressed,int 
         *dir = *temp;
         moveSprite(x, y, *dir, TRUE, FALSE,frameCount);
     }
+    else
+    {
+        *dir = NONE;
+        *last = NONE;
+        *temp = NONE;
+    }
 
 }
 
