@@ -47,11 +47,11 @@ void drawStart(SDL_Renderer *ren, SDL_Texture *tex);
 void drawGameOver(SDL_Renderer *ren, SDL_Texture *tex);
 void checkPill(int *x, int *y, BOOL *frightened, struct timespec *fStart, int aiMode, int *t);
 void moveSprite(int *x, int *y, int dir, BOOL pac, BOOL frightened, int frameCount);
-void moveShadow(int *x, int *y, int *dir, int pacX, int pacY, BOOL *la, int frameCount);
-void moveSpeedy(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int pacDir, BOOL *gate, int frameCount);
-void moveBashful(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int pacDir, int shadX, int shadY, BOOL *gate, int frameCount);
-void movePokey(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int *tempX, int *tempY, BOOL *loop, BOOL *gate, int frameCount);
-void moveFrightened(int *x, int *y, int *dir, int *tempX, int *tempY, int frameCount);
+void moveShadow(ghost *enemy, int pacX, int pacY, int frameCount);
+void moveSpeedy(ghost *enemy,int pacX,int pacY, int pacDir, int frameCount);
+void moveBashful(ghost *enemy,int pacX,int pacY, int pacDir, int shadX, int shadY, int frameCount);
+void movePokey(ghost *enemy,int pacX,int pacY, int *tempX, int *tempY, BOOL *loop, int frameCount);
+void moveFrightened(ghost *enemy, int frameCount);
 void movePac(int *dir, int *last, int *temp, int *x, int *y, int keyPressed,int frameCount);
 void drawGhost(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, BOOL frightened, struct timespec fClock, int ghostType, int frameCount);
 void drawPacman(SDL_Renderer *ren, SDL_Texture *tex, int x, int y, int dir, int frameCount);
@@ -335,26 +335,26 @@ int main()
                 }
                 chngDir = FALSE;
                 if(shadow.alive)
-                    moveFrightened(&shadow.x,&shadow.Y,&shadow.dir,&shadow.tx,&shadow.ty,frameCount);
+                    moveFrightened(&shadow,frameCount);
                 else
-                    moveShadow(&shadow.x,&shadow.Y,&shadow.dir, 13*BLOCKSIZE,11*BLOCKSIZE,&shadow.l,frameCount);
+                    moveShadow(&shadow, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
                 if(speedy.alive)
-                    moveFrightened(&speedy.x,&speedy.Y,&speedy.dir,&speedy.tx,&speedy.ty,frameCount);
+                    moveFrightened(&speedy,frameCount);
                 else
-                    moveShadow(&speedy.x,&speedy.Y,&speedy.dir, 13*BLOCKSIZE,11*BLOCKSIZE,&speedy.l,frameCount);
+                    moveShadow(&speedy, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
                 if(!bashful.gate)
                 {
                     if(bashful.alive)
-                        moveFrightened(&bashful.x,&bashful.Y,&bashful.dir,&bashful.tx,&bashful.ty,frameCount);
+                        moveFrightened(&bashful,frameCount);
                     else
-                        moveShadow(&bashful.x,&bashful.Y,&bashful.dir, 13*BLOCKSIZE,11*BLOCKSIZE,&bashful.l,frameCount);
+                        moveShadow(&bashful, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
                 }
                 if(!pokey.gate)
                 {
                     if(pokey.alive)
-                        moveFrightened(&pokey.x,&pokey.Y,&pokey.dir,&pokey.tx,&pokey.ty,frameCount);
+                        moveFrightened(&pokey,frameCount);
                     else
-                        moveShadow(&pokey.x,&pokey.Y,&pokey.dir, 13*BLOCKSIZE,11*BLOCKSIZE,&pokey.l,frameCount);
+                        moveShadow(&pokey, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
                 }
                 clock_gettime(CLOCK_REALTIME, &end);
                 diff = ( end.tv_sec - frightenedClock.tv_sec ) + ( end.tv_nsec - frightenedClock.tv_nsec )/1E9;
@@ -374,51 +374,51 @@ int main()
                 if(aiMode%2 == 0)
                 {
                     if(shadow.alive)
-                        moveShadow(&shadow.x,&shadow.Y,&shadow.dir, 30*BLOCKSIZE,0,&shadow.l,frameCount);
+                        moveShadow(&shadow, 30*BLOCKSIZE,0,frameCount);
                     else
-                        moveShadow(&shadow.x,&shadow.Y,&shadow.dir, 13*BLOCKSIZE,11*BLOCKSIZE,&shadow.l,frameCount);
+                        moveShadow(&shadow, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
                     if(speedy.alive)
-                        moveSpeedy(&speedy.x,&speedy.Y,&speedy.dir,0,0,&speedy.l, pac.dir,&speedy.gate,frameCount);
+                        moveSpeedy(&speedy,0,0, pac.dir,frameCount);
                     else
-                        moveShadow(&speedy.x,&speedy.Y,&speedy.dir, 13*BLOCKSIZE,11*BLOCKSIZE,&speedy.l,frameCount);
+                        moveShadow(&speedy, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
                     if(bashfulMove)
                     {
                         if(bashful.alive)
-                            moveBashful(&bashful.x,&bashful.Y,&bashful.dir,30*BLOCKSIZE,28*BLOCKSIZE,&bashful.l, pac.dir, shadow.x, shadow.Y,&bashful.gate,frameCount);
+                            moveBashful(&bashful,30*BLOCKSIZE,28*BLOCKSIZE, pac.dir, shadow.x, shadow.Y,frameCount);
                         else
-                            moveShadow(&bashful.x,&bashful.Y,&bashful.dir, 13*BLOCKSIZE,11*BLOCKSIZE,&bashful.l,frameCount);
+                            moveShadow(&bashful, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
                     }
                     if(pokeyMove)
                     {
                         if(pokey.alive)
-                            movePokey(&pokey.x,&pokey.Y,&pokey.dir, 0,28*BLOCKSIZE,&pokey.l,&pTempX, &pTempY, &loop,&pokey.gate,frameCount);
+                            movePokey(&pokey, 0,28*BLOCKSIZE,&pTempX, &pTempY, &loop,frameCount);
                         else
-                            moveShadow(&pokey.x,&pokey.Y,&pokey.dir, 13*BLOCKSIZE,11*BLOCKSIZE,&pokey.l,frameCount);
+                            moveShadow(&pokey, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
                     }
                 }
                 else
                 {
                     if(shadow.alive)
-                        moveShadow(&shadow.x,&shadow.Y,&shadow.dir, pac.x,pac.Y,&shadow.l,frameCount);
+                        moveShadow(&shadow, pac.x,pac.Y,frameCount);
                     else
-                        moveShadow(&shadow.x,&shadow.Y,&shadow.dir, 13*BLOCKSIZE,11*BLOCKSIZE,&shadow.l,frameCount);
+                        moveShadow(&shadow, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
                     if(speedy.alive)
-                        moveSpeedy(&speedy.x,&speedy.Y,&speedy.dir,pac.x,pac.Y,&speedy.l, pac.dir,&speedy.gate,frameCount);
+                        moveSpeedy(&speedy,pac.x,pac.Y, pac.dir,frameCount);
                     else
-                        moveShadow(&speedy.x,&speedy.Y,&speedy.dir, 13*BLOCKSIZE,11*BLOCKSIZE,&speedy.l,frameCount);
+                        moveShadow(&speedy, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
                     if(bashfulMove)
                     {
                         if(bashful.alive)
-                            moveBashful(&bashful.x,&bashful.Y,&bashful.dir,pac.x,pac.Y,&bashful.l, pac.dir, shadow.x, shadow.Y,&bashful.gate,frameCount);
+                            moveBashful(&bashful,pac.x,pac.Y, pac.dir, shadow.x, shadow.Y,frameCount);
                         else
-                            moveShadow(&bashful.x,&bashful.Y,&bashful.dir, 13*BLOCKSIZE,11*BLOCKSIZE,&bashful.l,frameCount);
+                            moveShadow(&bashful, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
                     }
                     if(pokeyMove)
                     {
                         if(pokey.alive)
-                            movePokey(&pokey.x,&pokey.Y,&pokey.dir, pac.x,pac.Y,&pokey.l,&pTempX, &pTempY, &loop,&pokey.gate,frameCount);
+                            movePokey(&pokey, pac.x,pac.Y,&pTempX, &pTempY, &loop,frameCount);
                         else
-                            moveShadow(&pokey.x,&pokey.Y,&pokey.dir, 13*BLOCKSIZE,11*BLOCKSIZE,&pokey.l,frameCount);
+                            moveShadow(&pokey, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
                     }
                 }
             }
@@ -671,60 +671,60 @@ void moveSprite(int *x, int *y, int dir, BOOL pac, BOOL frightened, int frameCou
     }
 }
 
-void moveShadow(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int frameCount)
+void moveShadow(ghost *enemy,int pacX,int pacY, int frameCount)
 {
     int a = 0;
     int temp;
-    int mhtnX = pacX-*x;
-    int mhtnY = pacY-*y;
+    int mhtnX = pacX-enemy->x;
+    int mhtnY = pacY-enemy->Y;
     for(int i = 0; i<4; ++i)
     {
-        if(checkMove(i,*x,*y,FALSE))
+        if(checkMove(i,enemy->x,enemy->Y,FALSE))
             a++;
     }
-    temp = reverseDir(*dir);
+    temp = reverseDir(enemy->dir);
     if(a == 2)
     {
-        *la = TRUE;
-        while((!checkMove(*dir,*x,*y,FALSE))||(*dir==temp))
+        enemy->l = TRUE;
+        while((!checkMove(enemy->dir,enemy->x,enemy->Y,FALSE))||(enemy->dir==temp))
         {
-            *dir = rand()%4;
+            enemy->dir = rand()%4;
         }
     }
-    else if((a>2)&&*la)
+    else if((a>2)&&enemy->l)
     {
-        *la = FALSE;
+        enemy->l = FALSE;
         if(abs(mhtnX)>=abs(mhtnY))
         {
             if(mhtnX >= 0)
             {
-                if((checkMove(RIGHT,*x,*y,FALSE))&&(temp!=RIGHT))
-                    *dir = RIGHT;
+                if((checkMove(RIGHT,enemy->x,enemy->Y,FALSE))&&(temp!=RIGHT))
+                    enemy->dir = RIGHT;
                 else if(mhtnY >= 0)
                 {
-                    if((checkMove(DOWN,*x,*y,FALSE))&&(temp!=DOWN))
-                        *dir = DOWN;
+                    if((checkMove(DOWN,enemy->x,enemy->Y,FALSE))&&(temp!=DOWN))
+                        enemy->dir = DOWN;
                 }
                 else
                 {
-                    if((checkMove(UP,*x,*y,FALSE))&&(temp!=UP))
-                        *dir = UP;
+                    if((checkMove(UP,enemy->x,enemy->Y,FALSE))&&(temp!=UP))
+                        enemy->dir = UP;
                 }
 
             }
             else
             {
-                if((checkMove(LEFT,*x,*y,FALSE))&&(temp!=LEFT))
-                    *dir = LEFT;
+                if((checkMove(LEFT,enemy->x,enemy->Y,FALSE))&&(temp!=LEFT))
+                    enemy->dir = LEFT;
                 else if(mhtnY >= 0)
                 {
-                    if((checkMove(DOWN,*x,*y,FALSE))&&(temp!=DOWN))
-                        *dir = DOWN;
+                    if((checkMove(DOWN,enemy->x,enemy->Y,FALSE))&&(temp!=DOWN))
+                        enemy->dir = DOWN;
                 }
                 else
                 {
-                    if((checkMove(UP,*x,*y,FALSE))&&(temp!=UP))
-                        *dir = UP;
+                    if((checkMove(UP,enemy->x,enemy->Y,FALSE))&&(temp!=UP))
+                        enemy->dir = UP;
                 }
 
             }
@@ -733,55 +733,55 @@ void moveShadow(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int frameCo
         {
             if(mhtnY>=0)
             {
-                if((checkMove(DOWN,*x,*y,FALSE))&&(temp!=DOWN))
-                    *dir = DOWN;
+                if((checkMove(DOWN,enemy->x,enemy->Y,FALSE))&&(temp!=DOWN))
+                    enemy->dir = DOWN;
                 else if(mhtnX>=0)
                 {
-                    if((checkMove(RIGHT,*x,*y,FALSE))&&(temp!=RIGHT))
-                        *dir = RIGHT;
+                    if((checkMove(RIGHT,enemy->x,enemy->Y,FALSE))&&(temp!=RIGHT))
+                        enemy->dir = RIGHT;
                 }
                 else
                 {
-                    if((checkMove(LEFT,*x,*y,FALSE))&&(temp!=LEFT))
-                        *dir = LEFT;
+                    if((checkMove(LEFT,enemy->x,enemy->Y,FALSE))&&(temp!=LEFT))
+                        enemy->dir = LEFT;
                 }
             }
             else
             {
-                if((checkMove(UP,*x,*y,FALSE))&&(temp!=UP))
-                    *dir = UP;
+                if((checkMove(UP,enemy->x,enemy->Y,FALSE))&&(temp!=UP))
+                    enemy->dir = UP;
                 else if(mhtnX>=0)
                 {
-                    if((checkMove(RIGHT,*x,*y,FALSE))&&(temp!=RIGHT))
-                        *dir = RIGHT;
+                    if((checkMove(RIGHT,enemy->x,enemy->Y,FALSE))&&(temp!=RIGHT))
+                        enemy->dir = RIGHT;
                 }
                 else
                 {
-                    if((checkMove(LEFT,*x,*y,FALSE))&&(temp!=LEFT))
-                        *dir = LEFT;
+                    if((checkMove(LEFT,enemy->x,enemy->Y,FALSE))&&(temp!=LEFT))
+                        enemy->dir = LEFT;
                 }
             }
         }
     }
-    moveSprite(x,y,*dir, FALSE, FALSE, frameCount);
+    moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE, frameCount);
 }
 
-void movePokey(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int *tempX, int *tempY, BOOL *loop, BOOL *gate, int frameCount)
+void movePokey(ghost *enemy,int pacX,int pacY, int *tempX, int *tempY, BOOL *loop, int frameCount)
 {
-    if(*y <= 11*BLOCKSIZE)
-        *gate = FALSE;
-    else if (*gate)
-        *dir = UP;
-    if(!(*gate))
+    if(enemy->Y <= 11*BLOCKSIZE)
+        enemy->gate = FALSE;
+    else if (enemy->gate)
+        enemy->dir = UP;
+    if(!(enemy->gate))
     {
-        int distX = abs(pacX-*x);
-        int distY = abs(pacY-*y);
+        int distX = abs(pacX-enemy->x);
+        int distY = abs(pacY-enemy->Y);
         int dist = distX + distY;
         if((dist < 8*BLOCKSIZE)&&!(*loop))
         {
             *loop = TRUE;
-            *tempX = *x;
-            *tempY = *y;
+            *tempX = enemy->x;
+            *tempY = enemy->Y;
         }
         if(*loop)
         {
@@ -791,56 +791,56 @@ void movePokey(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int *tempX, 
         }
         int a = 0;
         int temp;
-        int mhtnX = pacX-*x;
-        int mhtnY = pacY-*y;
+        int mhtnX = pacX-enemy->x;
+        int mhtnY = pacY-enemy->Y;
         for(int i = 0; i<4; ++i)
         {
-            if(checkMove(i,*x,*y,FALSE))
+            if(checkMove(i,enemy->x,enemy->Y,FALSE))
                 a++;
         }
-        temp = reverseDir(*dir);
+        temp = reverseDir(enemy->dir);
         if(a == 2)
         {
-            *la = TRUE;
-            while((!checkMove(*dir,*x,*y,FALSE))||(*dir==temp))
+            enemy->l = TRUE;
+            while((!checkMove(enemy->dir,enemy->x,enemy->Y,FALSE))||(enemy->dir==temp))
             {
-                *dir = rand()%4;
+                enemy->dir = rand()%4;
             }
         }
-        else if((a>2)&&*la)
+        else if((a>2)&&enemy->l)
         {
-            *la = FALSE;
+            enemy->l = FALSE;
             if(abs(mhtnX)>=abs(mhtnY))
             {
                 if(mhtnX >= 0)
                 {
-                    if((checkMove(RIGHT,*x,*y,FALSE))&&(temp!=RIGHT))
-                        *dir = RIGHT;
+                    if((checkMove(RIGHT,enemy->x,enemy->Y,FALSE))&&(temp!=RIGHT))
+                        enemy->dir = RIGHT;
                     else if(mhtnY >= 0)
                     {
-                        if((checkMove(DOWN,*x,*y,FALSE))&&(temp!=DOWN))
-                            *dir = DOWN;
+                        if((checkMove(DOWN,enemy->x,enemy->Y,FALSE))&&(temp!=DOWN))
+                            enemy->dir = DOWN;
                     }
                     else
                     {
-                        if((checkMove(UP,*x,*y,FALSE))&&(temp!=UP))
-                            *dir = UP;
+                        if((checkMove(UP,enemy->x,enemy->Y,FALSE))&&(temp!=UP))
+                            enemy->dir = UP;
                     }
 
                 }
                 else
                 {
-                    if((checkMove(LEFT,*x,*y,FALSE))&&(temp!=LEFT))
-                        *dir = LEFT;
+                    if((checkMove(LEFT,enemy->x,enemy->Y,FALSE))&&(temp!=LEFT))
+                        enemy->dir = LEFT;
                     else if(mhtnY >= 0)
                     {
-                        if((checkMove(DOWN,*x,*y,FALSE))&&(temp!=DOWN))
-                            *dir = DOWN;
+                        if((checkMove(DOWN,enemy->x,enemy->Y,FALSE))&&(temp!=DOWN))
+                            enemy->dir = DOWN;
                     }
                     else
                     {
-                        if((checkMove(UP,*x,*y,FALSE))&&(temp!=UP))
-                            *dir = UP;
+                        if((checkMove(UP,enemy->x,enemy->Y,FALSE))&&(temp!=UP))
+                            enemy->dir = UP;
                     }
 
                 }
@@ -849,48 +849,48 @@ void movePokey(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int *tempX, 
             {
                 if(mhtnY>=0)
                 {
-                    if((checkMove(DOWN,*x,*y,FALSE))&&(temp!=DOWN))
-                        *dir = DOWN;
+                    if((checkMove(DOWN,enemy->x,enemy->Y,FALSE))&&(temp!=DOWN))
+                        enemy->dir = DOWN;
                     else if(mhtnX>=0)
                     {
-                        if((checkMove(RIGHT,*x,*y,FALSE))&&(temp!=RIGHT))
-                            *dir = RIGHT;
+                        if((checkMove(RIGHT,enemy->x,enemy->Y,FALSE))&&(temp!=RIGHT))
+                            enemy->dir = RIGHT;
                     }
                     else
                     {
-                        if((checkMove(LEFT,*x,*y,FALSE))&&(temp!=LEFT))
-                            *dir = LEFT;
+                        if((checkMove(LEFT,enemy->x,enemy->Y,FALSE))&&(temp!=LEFT))
+                            enemy->dir = LEFT;
                     }
                 }
                 else
                 {
-                    if((checkMove(UP,*x,*y,FALSE))&&(temp!=UP))
-                        *dir = UP;
+                    if((checkMove(UP,enemy->x,enemy->Y,FALSE))&&(temp!=UP))
+                        enemy->dir = UP;
                     else if(mhtnX>=0)
                     {
-                        if((checkMove(RIGHT,*x,*y,FALSE))&&(temp!=RIGHT))
-                            *dir = RIGHT;
+                        if((checkMove(RIGHT,enemy->x,enemy->Y,FALSE))&&(temp!=RIGHT))
+                            enemy->dir = RIGHT;
                     }
                     else
                     {
-                        if((checkMove(LEFT,*x,*y,FALSE))&&(temp!=LEFT))
-                            *dir = LEFT;
+                        if((checkMove(LEFT,enemy->x,enemy->Y,FALSE))&&(temp!=LEFT))
+                            enemy->dir = LEFT;
                     }
                 }
             }
         }
     }
-    moveSprite(x,y,*dir, FALSE, FALSE,frameCount);
+    moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE,frameCount);
 }
 
-void moveBashful(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int pacDir, int shadX, int shadY, BOOL *gate, int frameCount)
+void moveBashful( ghost *enemy,int pacX,int pacY, int pacDir, int shadX, int shadY, int frameCount)
 {
 
-    if(*y <= 11*BLOCKSIZE)
-        *gate = FALSE;
-    else if (*gate)
-        *dir = UP;
-    if(!(*gate))
+    if(enemy->Y <= 11*BLOCKSIZE)
+        enemy->gate = FALSE;
+    else if (enemy->gate)
+        enemy->dir = UP;
+    if(!(enemy->gate))
     {
         int vectorX;
         int vectorY;
@@ -916,56 +916,56 @@ void moveBashful(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int pacDir
 
         int a = 0;
         int temp;
-        int mhtnX = pacX-*x;
-        int mhtnY = pacY-*y;
+        int mhtnX = pacX-enemy->x;
+        int mhtnY = pacY-enemy->Y;
         for(int i = 0; i<4; ++i)
         {
-            if(checkMove(i,*x,*y,FALSE))
+            if(checkMove(i,enemy->x,enemy->Y,FALSE))
                 a++;
         }
-        temp = reverseDir(*dir);
+        temp = reverseDir(enemy->dir);
         if(a == 2)
         {
-            *la = TRUE;
-            while((!checkMove(*dir,*x,*y,FALSE))||(*dir==temp))
+            enemy->l = TRUE;
+            while((!checkMove(enemy->dir,enemy->x,enemy->Y,FALSE))||(enemy->dir==temp))
             {
-                *dir = rand()%4;
+                enemy->dir = rand()%4;
             }
         }
-        else if((a>2)&&*la)
+        else if((a>2)&&enemy->l)
         {
-            *la = FALSE;
+            enemy->l = FALSE;
             if(abs(mhtnX)>=abs(mhtnY))
             {
                 if(mhtnX >= 0)
                 {
-                    if((checkMove(RIGHT,*x,*y,FALSE))&&(temp!=RIGHT))
-                        *dir = RIGHT;
+                    if((checkMove(RIGHT,enemy->x,enemy->Y,FALSE))&&(temp!=RIGHT))
+                        enemy->dir = RIGHT;
                     else if(mhtnY >= 0)
                     {
-                        if((checkMove(DOWN,*x,*y,FALSE))&&(temp!=DOWN))
-                            *dir = DOWN;
+                        if((checkMove(DOWN,enemy->x,enemy->Y,FALSE))&&(temp!=DOWN))
+                            enemy->dir = DOWN;
                     }
                     else
                     {
-                        if((checkMove(UP,*x,*y,FALSE))&&(temp!=UP))
-                            *dir = UP;
+                        if((checkMove(UP,enemy->x,enemy->Y,FALSE))&&(temp!=UP))
+                            enemy->dir = UP;
                     }
 
                 }
                 else
                 {
-                    if((checkMove(LEFT,*x,*y,FALSE))&&(temp!=LEFT))
-                        *dir = LEFT;
+                    if((checkMove(LEFT,enemy->x,enemy->Y,FALSE))&&(temp!=LEFT))
+                        enemy->dir = LEFT;
                     else if(mhtnY >= 0)
                     {
-                        if((checkMove(DOWN,*x,*y,FALSE))&&(temp!=DOWN))
-                            *dir = DOWN;
+                        if((checkMove(DOWN,enemy->x,enemy->Y,FALSE))&&(temp!=DOWN))
+                            enemy->dir = DOWN;
                     }
                     else
                     {
-                        if((checkMove(UP,*x,*y,FALSE))&&(temp!=UP))
-                            *dir = UP;
+                        if((checkMove(UP,enemy->x,enemy->Y,FALSE))&&(temp!=UP))
+                            enemy->dir = UP;
                     }
 
                 }
@@ -974,47 +974,47 @@ void moveBashful(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int pacDir
             {
                 if(mhtnY>=0)
                 {
-                    if((checkMove(DOWN,*x,*y,FALSE))&&(temp!=DOWN))
-                        *dir = DOWN;
+                    if((checkMove(DOWN,enemy->x,enemy->Y,FALSE))&&(temp!=DOWN))
+                        enemy->dir = DOWN;
                     else if(mhtnX>=0)
                     {
-                        if((checkMove(RIGHT,*x,*y,FALSE))&&(temp!=RIGHT))
-                            *dir = RIGHT;
+                        if((checkMove(RIGHT,enemy->x,enemy->Y,FALSE))&&(temp!=RIGHT))
+                            enemy->dir = RIGHT;
                     }
                     else
                     {
-                        if((checkMove(LEFT,*x,*y,FALSE))&&(temp!=LEFT))
-                            *dir = LEFT;
+                        if((checkMove(LEFT,enemy->x,enemy->Y,FALSE))&&(temp!=LEFT))
+                            enemy->dir = LEFT;
                     }
                 }
                 else
                 {
-                    if((checkMove(UP,*x,*y,FALSE))&&(temp!=UP))
-                        *dir = UP;
+                    if((checkMove(UP,enemy->x,enemy->Y,FALSE))&&(temp!=UP))
+                        enemy->dir = UP;
                     else if(mhtnX>=0)
                     {
-                        if((checkMove(RIGHT,*x,*y,FALSE))&&(temp!=RIGHT))
-                            *dir = RIGHT;
+                        if((checkMove(RIGHT,enemy->x,enemy->Y,FALSE))&&(temp!=RIGHT))
+                            enemy->dir = RIGHT;
                     }
                     else
                     {
-                        if((checkMove(LEFT,*x,*y,FALSE))&&(temp!=LEFT))
-                            *dir = LEFT;
+                        if((checkMove(LEFT,enemy->x,enemy->Y,FALSE))&&(temp!=LEFT))
+                            enemy->dir = LEFT;
                     }
                 }
             }
         }
     }
-    moveSprite(x,y,*dir, FALSE, FALSE,frameCount);
+    moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE,frameCount);
 }
 
-void moveSpeedy(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int pacDir, BOOL *gate, int frameCount)
+void moveSpeedy(ghost *enemy,int pacX,int pacY, int pacDir, int frameCount)
 {
-    if(*y <= 11*BLOCKSIZE)
-        *gate = FALSE;
-    else if (*gate)
-        *dir = UP;
-    if(!(*gate))
+    if(enemy->Y <= 11*BLOCKSIZE)
+        enemy->gate = FALSE;
+    else if (enemy->gate)
+        enemy->dir = UP;
+    if(!(enemy->gate))
     {
         switch(pacDir)
         {
@@ -1034,56 +1034,56 @@ void moveSpeedy(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int pacDir,
 
         int a = 0;
         int temp;
-        int mhtnX = pacX-*x;
-        int mhtnY = pacY-*y;
+        int mhtnX = pacX-enemy->x;
+        int mhtnY = pacY-enemy->Y;
         for(int i = 0; i<4; ++i)
         {
-            if(checkMove(i,*x,*y,FALSE))
+            if(checkMove(i,enemy->x,enemy->Y,FALSE))
                 a++;
         }
-        temp = reverseDir(*dir);
+        temp = reverseDir(enemy->dir);
         if(a == 2)
         {
-            *la = TRUE;
-            while((!checkMove(*dir,*x,*y,FALSE))||(*dir==temp))
+            enemy->l = TRUE;
+            while((!checkMove(enemy->dir,enemy->x,enemy->Y,FALSE))||(enemy->dir==temp))
             {
-                *dir = rand()%4;
+                enemy->dir = rand()%4;
             }
         }
-        else if((a>2)&&*la)
+        else if((a>2)&&enemy->l)
         {
-            *la = FALSE;
+            enemy->l = FALSE;
             if(abs(mhtnX)>=abs(mhtnY))
             {
                 if(mhtnX >= 0)
                 {
-                    if((checkMove(RIGHT,*x,*y,FALSE))&&(temp!=RIGHT))
-                        *dir = RIGHT;
+                    if((checkMove(RIGHT,enemy->x,enemy->Y,FALSE))&&(temp!=RIGHT))
+                        enemy->dir = RIGHT;
                     else if(mhtnY >= 0)
                     {
-                        if((checkMove(DOWN,*x,*y,FALSE))&&(temp!=DOWN))
-                            *dir = DOWN;
+                        if((checkMove(DOWN,enemy->x,enemy->Y,FALSE))&&(temp!=DOWN))
+                            enemy->dir = DOWN;
                     }
                     else
                     {
-                        if((checkMove(UP,*x,*y,FALSE))&&(temp!=UP))
-                            *dir = UP;
+                        if((checkMove(UP,enemy->x,enemy->Y,FALSE))&&(temp!=UP))
+                            enemy->dir = UP;
                     }
 
                 }
                 else
                 {
-                    if((checkMove(LEFT,*x,*y,FALSE))&&(temp!=LEFT))
-                        *dir = LEFT;
+                    if((checkMove(LEFT,enemy->x,enemy->Y,FALSE))&&(temp!=LEFT))
+                        enemy->dir = LEFT;
                     else if(mhtnY >= 0)
                     {
-                        if((checkMove(DOWN,*x,*y,FALSE))&&(temp!=DOWN))
-                            *dir = DOWN;
+                        if((checkMove(DOWN,enemy->x,enemy->Y,FALSE))&&(temp!=DOWN))
+                            enemy->dir = DOWN;
                     }
                     else
                     {
-                        if((checkMove(UP,*x,*y,FALSE))&&(temp!=UP))
-                            *dir = UP;
+                        if((checkMove(UP,enemy->x,enemy->Y,FALSE))&&(temp!=UP))
+                            enemy->dir = UP;
                     }
 
                 }
@@ -1092,38 +1092,38 @@ void moveSpeedy(int *x, int *y, int *dir,int pacX,int pacY,BOOL *la, int pacDir,
             {
                 if(mhtnY>=0)
                 {
-                    if((checkMove(DOWN,*x,*y,FALSE))&&(temp!=DOWN))
-                        *dir = DOWN;
+                    if((checkMove(DOWN,enemy->x,enemy->Y,FALSE))&&(temp!=DOWN))
+                        enemy->dir = DOWN;
                     else if(mhtnX>=0)
                     {
-                        if((checkMove(RIGHT,*x,*y,FALSE))&&(temp!=RIGHT))
-                            *dir = RIGHT;
+                        if((checkMove(RIGHT,enemy->x,enemy->Y,FALSE))&&(temp!=RIGHT))
+                            enemy->dir = RIGHT;
                     }
                     else
                     {
-                        if((checkMove(LEFT,*x,*y,FALSE))&&(temp!=LEFT))
-                            *dir = LEFT;
+                        if((checkMove(LEFT,enemy->x,enemy->Y,FALSE))&&(temp!=LEFT))
+                            enemy->dir = LEFT;
                     }
                 }
                 else
                 {
-                    if((checkMove(UP,*x,*y,FALSE))&&(temp!=UP))
-                        *dir = UP;
+                    if((checkMove(UP,enemy->x,enemy->Y,FALSE))&&(temp!=UP))
+                        enemy->dir = UP;
                     else if(mhtnX>=0)
                     {
-                        if((checkMove(RIGHT,*x,*y,FALSE))&&(temp!=RIGHT))
-                            *dir = RIGHT;
+                        if((checkMove(RIGHT,enemy->x,enemy->Y,FALSE))&&(temp!=RIGHT))
+                            enemy->dir = RIGHT;
                     }
                     else
                     {
-                        if((checkMove(LEFT,*x,*y,FALSE))&&(temp!=LEFT))
-                            *dir = LEFT;
+                        if((checkMove(LEFT,enemy->x,enemy->Y,FALSE))&&(temp!=LEFT))
+                            enemy->dir = LEFT;
                     }
                 }
             }
         }
     }
-    moveSprite(x,y,*dir, FALSE, FALSE,frameCount);
+    moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE,frameCount);
 }
 
 void movePac(int *dir, int *last, int *temp, int *x, int *y, int keyPressed,int frameCount)
@@ -1283,31 +1283,31 @@ void drawMaze(SDL_Renderer *ren, SDL_Texture *tex, SDL_Texture *wtex)
     }
 }
 
-void moveFrightened(int *x, int *y, int *dir, int *tempX, int *tempY,int frameCount)
+void moveFrightened(ghost *enemy, int frameCount)
 {
     int a = 0;
     int temp;
     for(int i = 0; i<4; ++i)
     {
-        if(checkMove(i,*x,*y,FALSE))
+        if(checkMove(i,enemy->x,enemy->Y,FALSE))
             a++;
     }
 
-    temp = reverseDir(*dir);
-    if((a > 1)&&((abs(*tempX-*x)>2)||(abs(*tempY-*y)>2)))
+    temp = reverseDir(enemy->dir);
+    if((a > 1)&&((abs(enemy->tx-enemy->x)>2)||(abs(enemy->ty-enemy->Y)>2)))
     {
-        *tempX = *x;
-        *tempY = *y;
-        *dir = rand()%4;
-        while((!checkMove(*dir,*x,*y,FALSE))||(*dir==temp))
+        enemy->tx = enemy->x;
+        enemy->ty = enemy->Y;
+        enemy->dir = rand()%4;
+        while((!checkMove(enemy->dir,enemy->x,enemy->Y,FALSE))||(enemy->dir==temp))
         {
-            (*dir)++;
-            if(*dir > 3)
-                *dir = 0;
+            (enemy->dir)++;
+            if(enemy->dir > 3)
+                enemy->dir = 0;
         }
     }
 
-    moveSprite(x, y, *dir, FALSE, TRUE,frameCount);
+    moveSprite(&enemy->x, &enemy->Y, enemy->dir, FALSE, TRUE,frameCount);
 }
 
 int pillCount()
