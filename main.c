@@ -36,17 +36,18 @@ typedef struct
     BOOL l;
     int tx;
     int ty;
+    BOOL frightened;
     BOOL alive;
 }ghost;
 
-BOOL checkVictory();
 BOOL checkMove(int dir, int x, int y, BOOL pac);
-BOOL checkDeath(ghost *enemy, pacman *pac);
+BOOL checkPac(ghost *enemy, pacman *pac);
 BOOL checkGhost(ghost *enemy, pacman *pac);
+void checkDeaths(pacman *pac, ghost *shadow, ghost *speedy, ghost *bashful, ghost *pokey);
 void drawStart(SDL_Renderer *ren, SDL_Texture *tex);
 void drawGameOver(SDL_Renderer *ren, SDL_Texture *tex);
 void checkPill(int *x, int *y, BOOL *frightened, struct timespec *fStart, int aiMode, int *t);
-void moveSprite(int *x, int *y, int dir, BOOL pac, BOOL frightened, int frameCount);
+void moveSprite(int *x, int *y, int dir, BOOL pac, BOOL frightened, BOOL alive, int frameCount);
 void moveShadow(ghost *enemy, int pacX, int pacY, int frameCount);
 void moveSpeedy(ghost *enemy,int pacX,int pacY, int pacDir, int frameCount);
 void moveBashful(ghost *enemy,int pacX,int pacY, int pacDir, int shadX, int shadY, int frameCount);
@@ -207,10 +208,10 @@ int main()
     BOOL quit=FALSE;
     // now we are going to loop forever, process the keys then draw
 
-    ghost shadow = {14*BLOCKSIZE,11*BLOCKSIZE,LEFT,TRUE,TRUE,0,0,TRUE};
-    ghost speedy = {13*BLOCKSIZE,13*BLOCKSIZE,UP,TRUE,TRUE,0,0,TRUE};
-    ghost bashful = {14*BLOCKSIZE,13*BLOCKSIZE,LEFT,TRUE,TRUE,0,0,TRUE};
-    ghost pokey = {13*BLOCKSIZE,14*BLOCKSIZE,RIGHT,TRUE,TRUE,0,0,TRUE};
+    ghost shadow = {14*BLOCKSIZE,11*BLOCKSIZE,LEFT,TRUE,TRUE,0,0,FALSE,TRUE};
+    ghost speedy = {13*BLOCKSIZE,13*BLOCKSIZE,UP,TRUE,TRUE,0,0,FALSE,TRUE};
+    ghost bashful = {14*BLOCKSIZE,13*BLOCKSIZE,LEFT,TRUE,TRUE,0,0,FALSE,TRUE};
+    ghost pokey = {13*BLOCKSIZE,14*BLOCKSIZE,RIGHT,TRUE,TRUE,0,0,FALSE,TRUE};
     pacman pac = {13.5*BLOCKSIZE,23*BLOCKSIZE+1,NONE,NONE,NONE,TRUE};
     BOOL keyPressed = FALSE;
     BOOL begin = FALSE;
@@ -287,33 +288,43 @@ int main()
             }
         }
 
-        if(!frightened)
+        if(frightened)
         {
-            if(pac.alive&&shadow.alive)
-                pac.alive = checkDeath(&shadow, &pac);
-            if(pac.alive&&speedy.alive)
-                pac.alive = checkDeath(&speedy, &pac);
-            if(pac.alive&&bashful.alive)
-                pac.alive = checkDeath(&bashful, &pac);
-            if(pac.alive&&pokey.alive)
-                pac.alive = checkDeath(&pokey, &pac);
-        }
-        else
-        {
-            shadow.alive = checkGhost(&shadow, &pac);
-            speedy.alive = checkGhost(&speedy, &pac);
-            bashful.alive = checkGhost(&bashful, &pac);
-            pokey.alive = checkGhost(&pokey, &pac);
+            if(shadow.alive)
+                shadow.frightened = TRUE;
+            else
+                shadow.frightened = FALSE;
+            if(speedy.alive)
+                speedy.frightened = TRUE;
+            else
+                speedy.frightened = FALSE;
+            if(bashful.alive)
+                bashful.frightened = TRUE;
+            else
+                bashful.frightened = FALSE;
+            if(pokey.alive)
+                pokey.frightened = TRUE;
+            else
+                pokey.frightened = FALSE;
 
+            shadow.dir = reverseDir(shadow.dir);
+            speedy.dir = reverseDir(speedy.dir);
+            bashful.dir = reverseDir(bashful.dir);
+            pokey.dir = reverseDir(pokey.dir);
+
+            frightened = FALSE;
         }
+        checkDeaths(&pac,&shadow,&speedy,&bashful,&pokey);
+
         if(!shadow.alive)
-            shadow.alive = checkGhost(&shadow, &pac);
+            shadow.frightened = FALSE;
         if(!speedy.alive)
-            speedy.alive = checkGhost(&speedy, &pac);
+            speedy.frightened = FALSE;
         if(!bashful.alive)
-            bashful.alive = checkGhost(&bashful, &pac);
+            bashful.frightened = FALSE;
         if(!pokey.alive)
-            pokey.alive = checkGhost(&pokey, &pac);
+            pokey.frightened = FALSE;
+
         if(begin&&pac.alive)
         {
             movePac(&pac, keyPressed,frameCount);
@@ -323,106 +334,83 @@ int main()
             if((pillCount() <= 172)&&!frightened)
                 pokeyMove = TRUE;
 
-
-            if(frightened)
+            clock_gettime(CLOCK_REALTIME, &end);
+            diff = ( end.tv_sec - start.tv_sec ) + ( end.tv_nsec - start.tv_nsec )/1E9;
+            if((diff >= moveMode[aiMode])&&(aiMode < 7))
             {
-                if(chngDir)
-                {
-                    shadow.dir = reverseDir(shadow.dir);
-                    speedy.dir = reverseDir(speedy.dir);
-                    bashful.dir = reverseDir(bashful.dir);
-                    pokey.dir = reverseDir(pokey.dir);
-                }
-                chngDir = FALSE;
-                if(shadow.alive)
-                    moveFrightened(&shadow,frameCount);
-                else
-                    moveShadow(&shadow, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
-                if(speedy.alive)
-                    moveFrightened(&speedy,frameCount);
-                else
-                    moveShadow(&speedy, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
-                if(!bashful.gate)
-                {
-                    if(bashful.alive)
-                        moveFrightened(&bashful,frameCount);
-                    else
-                        moveShadow(&bashful, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
-                }
-                if(!pokey.gate)
-                {
-                    if(pokey.alive)
-                        moveFrightened(&pokey,frameCount);
-                    else
-                        moveShadow(&pokey, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
-                }
-                clock_gettime(CLOCK_REALTIME, &end);
-                diff = ( end.tv_sec - frightenedClock.tv_sec ) + ( end.tv_nsec - frightenedClock.tv_nsec )/1E9;
+                //printf("yo");
+                aiMode++;
+            }
+            //printf("%d\t%f\n",aiMode,diff);
 
-                if(diff >= 7)
-                    frightened = FALSE;
+            clock_gettime(CLOCK_REALTIME, &end);
+            diff = ( end.tv_sec - frightenedClock.tv_sec ) + ( end.tv_nsec - frightenedClock.tv_nsec )/1E9;
+            if(diff >= 7)
+            {
+                shadow.frightened = FALSE;
+                speedy.frightened = FALSE;
+                bashful.frightened = FALSE;
+                pokey.frightened = FALSE;
+            }
+
+
+
+            if(shadow.alive)
+            {
+                if(shadow.frightened)
+                    moveFrightened(&shadow,frameCount);
+                else if (aiMode%2 == 0)
+                    moveShadow(&shadow, 30*BLOCKSIZE,0,frameCount);
+                else
+                    moveShadow(&shadow, pac.x,pac.Y,frameCount);
             }
             else
+                moveShadow(&shadow, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
+
+            if(speedy.alive)
             {
-                chngDir = TRUE;
-                clock_gettime(CLOCK_REALTIME, &end);
-                diff = ( end.tv_sec - start.tv_sec ) + ( end.tv_nsec - start.tv_nsec )/1E9;
-                if((diff >= moveMode[aiMode])&&(aiMode < 7))
+                if(speedy.frightened)
+                    moveFrightened(&speedy,frameCount);
+                else if (aiMode%2 == 0)
+                    moveSpeedy(&speedy,0,0, pac.dir,frameCount);
+                else
+                    moveSpeedy(&speedy,pac.x,pac.Y, pac.dir,frameCount);
+            }
+            else
+                moveShadow(&speedy, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
+
+            if(bashfulMove)
+            {
+                if(bashful.alive)
                 {
-                    aiMode++;
-                }
-                if(aiMode%2 == 0)
-                {
-                    if(shadow.alive)
-                        moveShadow(&shadow, 30*BLOCKSIZE,0,frameCount);
+                    if(bashful.frightened&&!bashful.gate)
+                        moveFrightened(&bashful,frameCount);
+                    else if (aiMode%2 == 0)
+                        moveBashful(&bashful,30*BLOCKSIZE,28*BLOCKSIZE, pac.dir, shadow.x, shadow.Y,frameCount);
                     else
-                        moveShadow(&shadow, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
-                    if(speedy.alive)
-                        moveSpeedy(&speedy,0,0, pac.dir,frameCount);
-                    else
-                        moveShadow(&speedy, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
-                    if(bashfulMove)
-                    {
-                        if(bashful.alive)
-                            moveBashful(&bashful,30*BLOCKSIZE,28*BLOCKSIZE, pac.dir, shadow.x, shadow.Y,frameCount);
-                        else
-                            moveShadow(&bashful, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
-                    }
-                    if(pokeyMove)
-                    {
-                        if(pokey.alive)
-                            movePokey(&pokey, 0,28*BLOCKSIZE,&pTempX, &pTempY, &loop,frameCount);
-                        else
-                            moveShadow(&pokey, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
-                    }
+                        moveBashful(&bashful,pac.x,pac.Y, pac.dir, shadow.x, shadow.Y,frameCount);
                 }
                 else
+                    moveShadow(&bashful, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
+            }
+
+            if(pokeyMove)
+            {
+                if(pokey.alive)
                 {
-                    if(shadow.alive)
-                        moveShadow(&shadow, pac.x,pac.Y,frameCount);
+                    if(pokey.frightened&&!pokey.gate)
+                        moveFrightened(&pokey,frameCount);
+                    else if (aiMode%2 == 0)
+                        movePokey(&pokey, 0,28*BLOCKSIZE,&pTempX, &pTempY, &loop,frameCount);
                     else
-                        moveShadow(&shadow, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
-                    if(speedy.alive)
-                        moveSpeedy(&speedy,pac.x,pac.Y, pac.dir,frameCount);
-                    else
-                        moveShadow(&speedy, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
-                    if(bashfulMove)
-                    {
-                        if(bashful.alive)
-                            moveBashful(&bashful,pac.x,pac.Y, pac.dir, shadow.x, shadow.Y,frameCount);
-                        else
-                            moveShadow(&bashful, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
-                    }
-                    if(pokeyMove)
-                    {
-                        if(pokey.alive)
-                            movePokey(&pokey, pac.x,pac.Y,&pTempX, &pTempY, &loop,frameCount);
-                        else
-                            moveShadow(&pokey, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
-                    }
+                        movePokey(&pokey, pac.x,pac.Y,&pTempX, &pTempY, &loop,frameCount);
                 }
+                else
+                    moveShadow(&pokey, 13*BLOCKSIZE,11*BLOCKSIZE,frameCount);
             }
         }
+
+        printf("%d\t%d\n",bashful.gate,pokey.gate);
 
 
         checkPill(&pac.x, &pac.Y, &frightened, &frightenedClock, aiMode, &moveMode[0]);
@@ -442,19 +430,19 @@ int main()
         if(pac.alive)
         {
             if(shadow.alive)
-                drawGhost(ren, gtex, &shadow, frightened, frightenedClock,4,frameCount);
+                drawGhost(ren, gtex, &shadow, shadow.frightened, frightenedClock,4,frameCount);
             else
                 drawGhost(ren, gtex, &shadow, FALSE, frightenedClock,0,0);
             if(speedy.alive)
-                drawGhost(ren, gtex, &speedy, frightened, frightenedClock,2,frameCount);
+                drawGhost(ren, gtex, &speedy, speedy.frightened, frightenedClock,2,frameCount);
             else
                 drawGhost(ren, gtex, &speedy, FALSE, frightenedClock,0,0);
             if(bashful.alive)
-                drawGhost(ren, gtex, &bashful, frightened, frightenedClock,3,frameCount);
+                drawGhost(ren, gtex, &bashful, bashful.frightened, frightenedClock,3,frameCount);
             else
                 drawGhost(ren, gtex, &bashful, FALSE, frightenedClock,0,0);
             if(pokey.alive)
-                drawGhost(ren, gtex, &pokey, frightened, frightenedClock,1,frameCount);
+                drawGhost(ren, gtex, &pokey, pokey.frightened, frightenedClock,1,frameCount);
             else
                 drawGhost(ren, gtex, &pokey, FALSE, frightenedClock,0,0);
             lifeDeduct = TRUE;
@@ -505,8 +493,8 @@ int main()
             drawDeadPac(ren, dtex, &pac, deathCount);
         }
 
-        if(quit != TRUE)
-            quit = checkVictory();
+        if((quit != TRUE)&&(pillCount() <= 0))
+            quit = TRUE;
         // Up until now everything was drawn behind the scenes.
         // This will show the new, red contents of the window.
         SDL_RenderPresent(ren);
@@ -518,6 +506,7 @@ int main()
             if(frameCount > 28)
                 frameCount = 0;
         }
+
 
     }
     SDL_Quit();
@@ -551,21 +540,6 @@ void drawGameOver(SDL_Renderer *ren, SDL_Texture *tex)
     img.w = 700;
     img.h = 775;
     SDL_RenderCopy(ren,tex,&img,&screenBlock);
-}
-
-BOOL checkVictory()
-{
-    BOOL victory = TRUE;
-    for(int i = 1; i < ROWS+1; ++i)
-    {
-        for(int j = 1; j < COLS+1; ++j)
-        {
-            if ((map[i][j] == RPILL)||map[i][j] == POWERPILL)
-                victory = FALSE;
-
-        }
-    }
-    return victory;
 }
 
 BOOL checkMove(int dir, int x, int y, BOOL pac)
@@ -627,7 +601,7 @@ void checkPill(int *x, int *y, BOOL *frightened, struct timespec *fStart, int ai
         map[a][b] = BLACK;
         *frightened = TRUE;
         clock_gettime(CLOCK_REALTIME, fStart);
-        for(int i = aiMode; i < 8; i++)
+        for(int i = aiMode; i < 7; i++)
         {
             *(t+i)+=7;
         }
@@ -643,7 +617,7 @@ void checkTeleport(int *x, int dir)
         *x = 0;
 }
 
-void moveSprite(int *x, int *y, int dir, BOOL pac, BOOL frightened, int frameCount)
+void moveSprite(int *x, int *y, int dir, BOOL pac, BOOL frightened, BOOL alive, int frameCount)
 {
 
     int step = BLOCKSIZE*scale;
@@ -652,6 +626,8 @@ void moveSprite(int *x, int *y, int dir, BOOL pac, BOOL frightened, int frameCou
         if(frightened||(frameCount%2 == 0))
             step-=1;
     }
+    if(!alive)
+        step++;
     switch (dir)
     {
 
@@ -763,7 +739,7 @@ void moveShadow(ghost *enemy,int pacX,int pacY, int frameCount)
             }
         }
     }
-    moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE, frameCount);
+    moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE, enemy->alive, frameCount);
 }
 
 void movePokey(ghost *enemy,int pacX,int pacY, int *tempX, int *tempY, BOOL *loop, int frameCount)
@@ -880,7 +856,7 @@ void movePokey(ghost *enemy,int pacX,int pacY, int *tempX, int *tempY, BOOL *loo
             }
         }
     }
-    moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE,frameCount);
+    moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE, enemy->alive, frameCount);
 }
 
 void moveBashful( ghost *enemy,int pacX,int pacY, int pacDir, int shadX, int shadY, int frameCount)
@@ -1005,7 +981,7 @@ void moveBashful( ghost *enemy,int pacX,int pacY, int pacDir, int shadX, int sha
             }
         }
     }
-    moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE,frameCount);
+    moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE, enemy->alive, frameCount);
 }
 
 void moveSpeedy(ghost *enemy,int pacX,int pacY, int pacDir, int frameCount)
@@ -1123,7 +1099,7 @@ void moveSpeedy(ghost *enemy,int pacX,int pacY, int pacDir, int frameCount)
             }
         }
     }
-    moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE,frameCount);
+    moveSprite(&enemy->x,&enemy->Y,enemy->dir, FALSE, FALSE, enemy->alive, frameCount);
 }
 
 void movePac( pacman *pac, int keyPressed,int frameCount)
@@ -1143,17 +1119,17 @@ void movePac( pacman *pac, int keyPressed,int frameCount)
         pac->dir = pac->last;
         pac->last = NONE;
         pac->temp = NONE;
-        moveSprite(&pac->x, &pac->Y, pac->dir, TRUE, FALSE,frameCount);
+        moveSprite(&pac->x, &pac->Y, pac->dir, TRUE, FALSE,TRUE,frameCount);
     }
     else if(move == TRUE)
     {
-        moveSprite(&pac->x, &pac->Y, pac->dir, TRUE, FALSE,frameCount);
+        moveSprite(&pac->x, &pac->Y, pac->dir, TRUE, FALSE,TRUE,frameCount);
     }
     else if(moveBckUp == TRUE)
     {
         pac->last = pac->dir;
         pac->dir = pac->temp;
-        moveSprite(&pac->x, &pac->Y, pac->dir, TRUE, FALSE,frameCount);
+        moveSprite(&pac->x, &pac->Y, pac->dir, TRUE, FALSE,TRUE,frameCount);
     }
     else
     {
@@ -1307,7 +1283,7 @@ void moveFrightened(ghost *enemy, int frameCount)
         }
     }
 
-    moveSprite(&enemy->x, &enemy->Y, enemy->dir, FALSE, TRUE,frameCount);
+    moveSprite(&enemy->x, &enemy->Y, enemy->dir, FALSE, TRUE, enemy->alive, frameCount);
 }
 
 int pillCount()
@@ -1340,7 +1316,7 @@ int reverseDir(int dir)
     return NONE;
 }
 
-BOOL checkDeath(ghost *enemy, pacman *pac)
+BOOL checkPac(ghost *enemy, pacman *pac)
 {
     int diff = 3*BLOCKSIZE/4;
     if((abs((pac->x)-(enemy->x))<=diff)&&(abs((pac->Y)-(enemy->Y))<=diff))
@@ -1417,8 +1393,8 @@ void reset( BOOL *keyPressed,
     shadow->tx=0;
     shadow->ty=0;
 
-    speedy->x=13*BLOCKSIZE;
-    speedy->Y=13*BLOCKSIZE;
+    speedy->x=14*BLOCKSIZE;
+    speedy->Y=11*BLOCKSIZE;
     speedy->dir=UP;
     speedy->alive=TRUE;
     speedy->gate=TRUE;
@@ -1435,7 +1411,7 @@ void reset( BOOL *keyPressed,
     bashful->tx=0;
     bashful->ty=0;
 
-    pokey->x=14*BLOCKSIZE;
+    pokey->x=13*BLOCKSIZE;
     pokey->Y=13*BLOCKSIZE;
     pokey->dir=LEFT;
     pokey->alive=TRUE;
@@ -1505,3 +1481,22 @@ int checkMazeBlock(int x, int y)
     return type;
 }
 
+void checkDeaths(pacman *pac, ghost *shadow, ghost *speedy, ghost *bashful, ghost *pokey)
+{
+    if(shadow->frightened||!shadow->alive)
+        shadow->alive = checkGhost(shadow, pac);
+    else if (pac->alive&&shadow->alive)
+        pac->alive = checkPac(shadow, pac);
+    if(speedy->frightened||!speedy->alive)
+        speedy->alive = checkGhost(speedy, pac);
+    else if (pac->alive&&speedy->alive)
+        pac->alive = checkPac(speedy, pac);
+    if(bashful->frightened||!bashful->alive)
+        bashful->alive = checkGhost(bashful, pac);
+    else if (pac->alive&&bashful->alive)
+        pac->alive = checkPac(bashful, pac);
+    if(pokey->frightened||!pokey->alive)
+        pokey->alive = checkGhost(pokey, pac);
+    else if (pac->alive&&pokey->alive)
+        pac->alive = checkPac(pokey, pac);
+}
