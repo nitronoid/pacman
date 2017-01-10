@@ -1,11 +1,13 @@
 #include <time.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 // include the map for the maze.
 #include "map.h"
+#include "pacman.h"
 // the size of the block to draw
 const int c_blockSize=25;
 const float c_scale=0.08f;
@@ -18,42 +20,6 @@ enum DIRECTION{LEFT,RIGHT,UP,DOWN,NONE};
 enum TYPE{SHADOW,SPEEDY,BASHFUL,POKEY};
 enum BLOCK{BLACK,BLUE,RPILL,GATE,POWERPILL};
 
-typedef struct
-{
-  int pills;
-  int ghosts;
-  int lastLevel;
-  int total;
-}score;
-
-typedef struct
-{
-	int x;
-  int y;
-	int dir;
-	int temp;
-	int last;
-  bool alive;
-}pacman;
-
-typedef struct
-{
-  int type;
-	int x;
-  int y;
-	int dir;
-  bool gate;
-  bool turn;
-  int tempX;
-  int tempY;
-  int scatX;
-  int scatY;
-  bool frightened;
-  bool alive;
-  bool loop;
-  void(*move)(void);
-}ghost;
-
 pacman setPacDir( pacman, int, bool*, bool* );
 ghost setGhostDir( ghost, int, int, int );
 ghost setRandDir(ghost , int );
@@ -64,81 +30,87 @@ bool checkMove( int, int, int, bool, bool );
 void checkPill( int, int, bool*, struct timespec*, int, int*);
 void checkTeleport( int*, int );
 int checkMazeBlock( int, int );
-void checkDeaths( pacman*, ghost*, ghost*, ghost*, ghost*, score*);
-bool checkPac( ghost, pacman );
+void checkDeaths(pacman*, ghost*, ghost*, ghost*, ghost*, int*, score*);
+bool checkPac( ghost, pacman, int* );
 bool checkGhost( ghost*, pacman, score*);
 
 pacman movePac( pacman, int ,int );
-ghost ghostAct(ghost, ghost, pacman, int, int);
-ghost moveFrightened(ghost, int );
-ghost moveShadow(ghost, pacman, int );
-ghost moveSpeedy(ghost, pacman, int );
-ghost moveBashful(ghost, pacman, int , ghost );
-ghost movePokey(ghost, pacman, int);
+ghost moveGhost(ghost, ghost, pacman, int, int);
+ghost moveFrightened(ghost);
+ghost moveShadow(ghost, pacman );
+ghost moveSpeedy(ghost, pacman);
+ghost moveBashful(ghost, pacman, ghost );
+ghost movePokey(ghost, pacman);
 void moveSprite( int*, int*, int, bool, bool, bool, int );
 
-void drawScreen(SDL_Renderer*, SDL_Texture*[], pacman, int, int, struct timespec, int, bool, ... );
+void drawScreen(SDL_Renderer*, SDL_Texture*[], pacman, int, int, struct timespec, int, int, bool,TTF_Font*, ... );
 void drawStart( SDL_Renderer*, SDL_Texture*);
 void drawGameOver( SDL_Renderer*, SDL_Texture*);
 void drawAllEnemies(SDL_Renderer*, struct timespec, int, SDL_Texture*, va_list);
 void drawGhost( SDL_Renderer*, SDL_Texture*, ghost, bool, struct timespec, int, int );
 void drawPacman( SDL_Renderer*, SDL_Texture*, pacman, int );
 void drawMaze( SDL_Renderer*, SDL_Texture*, SDL_Texture* );
+void drawScore(SDL_Renderer*, int, TTF_Font* );
 
 int pillCount();
 int reverseDir( int );
 double timeDiff( struct timespec*, struct timespec );
-void reset(bool*, bool*, bool*, bool*, bool*, int*, int*, int*, ghost*, ghost*, ghost*, ghost*, pacman*);
+void reset(bool*, bool*, bool*, bool*, bool*, int*, int *, ghost*, ghost*, ghost*, ghost *io_pokey, pacman*);
 SDL_Texture *createTex( const char*, SDL_Renderer*, SDL_Surface* );
 void createTexArray(int, SDL_Texture*[], SDL_Renderer *, SDL_Surface *, ...);
 ghost createGhost(int, int, int, int, int, void(*)(void));
 
+
 int main()
 {
-	// initialise SDL and check that it worked otherwise exit
-	// see here for details http://wiki.libsdl.org/CategoryAPI
-	if ( SDL_Init(SDL_INIT_EVERYTHING) == -1 )
-	{
-		printf("%s\n",SDL_GetError());
-		return EXIT_FAILURE;
+  // initialise SDL and check that it worked otherwise exit
+  // see here for details http://wiki.libsdl.org/CategoryAPI
+  if ( SDL_Init(SDL_INIT_EVERYTHING) == -1 )
+  {
+    printf("%s\n",SDL_GetError());
+    return EXIT_FAILURE;
   }
-	// we are now going to create an SDL window
+  if ( TTF_Init() == -1 )
+  {
+    printf("%s\n",SDL_GetError());
+    return EXIT_FAILURE;
+  }
+  // we are now going to create an SDL window
 
-	SDL_Window *win = 0;
-	win = SDL_CreateWindow("Pacman", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
-	if ( win == 0 )
-	{
-		printf("%s\n",SDL_GetError());
-		return EXIT_FAILURE;
-	}
-	// the renderer is the core element we need to draw, each call to SDL for drawing will need the
-	// renderer pointer
-	SDL_Renderer *ren = 0;
-	ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-	// check to see if this worked
-	if ( ren == 0 )
-	{
-		printf("%s\n",SDL_GetError() );
-		return EXIT_FAILURE;
-	}
-	SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+  SDL_Window *win = 0;
+  win = SDL_CreateWindow("Pacman", 100, 100, WIDTH, HEIGHT+c_blockSize, SDL_WINDOW_SHOWN);
+  if ( win == 0 )
+  {
+    printf("%s\n",SDL_GetError());
+    return EXIT_FAILURE;
+  }
+  // the renderer is the core element we need to draw, each call to SDL for drawing will need the
+  // renderer pointer
+  SDL_Renderer *ren = 0;
+  ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  // check to see if this worked
+  if ( ren == 0 )
+  {
+    printf("%s\n",SDL_GetError() );
+    return EXIT_FAILURE;
+  }
+  SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
 
-	SDL_Surface * image = NULL;
+  TTF_Font* Sans = TTF_OpenFont("/usr/share/fonts/gnu-free/FreeSans.ttf", 24);
+  SDL_Surface * image = NULL;
   SDL_Texture* texArr[7];
   createTexArray(7,texArr,ren,image,"pacsprite.png","pills.png","ghostSprites.png","startScreen.png","gameOver.png","pacDeath.png","wallSegs.png");
   bool quit=false;
 
-  ghost shadow = createGhost(SHADOW,14,11,30,0,(void(*)(void))moveShadow);
-  ghost speedy = createGhost(SPEEDY,13,13,0,0,(void(*)(void))moveSpeedy);
-  ghost bashful = createGhost(BASHFUL,14,13,30,28,(void(*)(void))moveBashful);
-  ghost pokey = createGhost(POKEY,13,14,0,28,(void(*)(void))movePokey);
-  pacman pac = {13.5*c_blockSize,23*c_blockSize+1,NONE,NONE,NONE,true};
-  bool keyPressed = false, begin = false,
-       chngDir = true, frightened = false,
-       lifeDeduct = false;
-	double diff;
-  int frameCount = 0, deathCount = 0, aiMode = 0, lives = 3;
-	int moveMode[7]={7,27,34,54,59,79,84};
+  ghost shadow, speedy, bashful, pokey;
+  pacman pac;
+  bool keyPressed, begin, chngDir, frightened, lifeDeduct;
+  double diff;
+  int frameCount, aiMode, lives = 3;
+  reset(&keyPressed,&begin,&chngDir,&frightened,
+        &lifeDeduct,&frameCount,&aiMode,&shadow,
+        &speedy,&bashful,&pokey,&pac);
+  int moveMode[7]={7,27,34,54,59,79,84};
   srand(time(NULL));
   struct timespec start, end, lEnd, frightenedClock;
   clock_gettime(CLOCK_REALTIME, &start);
@@ -146,21 +118,21 @@ int main()
   score points = {0,0,0,0};
 
   while ( quit != true )
-	{
-		SDL_Event event;
-		// grab the SDL event (this will be keys etc)
+  {
+    SDL_Event event;
+    // grab the SDL event (this will be keys etc)
     while ( SDL_PollEvent(&event) )
-		{
+    {
       keyPressed = false;
       // look for the x of the window being clicked and exit
-			if ( event.type == SDL_QUIT )
+      if ( event.type == SDL_QUIT )
       {
         quit = true;
       }
       // check for a key down
       else if ( event.type == SDL_KEYDOWN )
-			{
-				switch ( event.key.keysym.sym )
+      {
+        switch ( event.key.keysym.sym )
         {
           case SDLK_ESCAPE:
             quit=true;
@@ -190,83 +162,72 @@ int main()
             break;
           }
         }
-			}
-		}
+      }
+    }
+
     int pills = pillCount();
     points.pills = (256 - pills)*10;
 
-		setFrightened(&frightened, &shadow, &speedy, &bashful, &pokey, frightenedClock);
-    checkDeaths(&pac,&shadow,&speedy,&bashful,&pokey, &points);
-
-    if ( begin && pac.alive )
-		{
-      lifeDeduct = true;
-      pac = movePac(pac, keyPressed,frameCount);
-
-			diff = timeDiff(&end,start);
-			if ( (diff >= moveMode[aiMode]) && (aiMode < 7) )
-      {
-        aiMode++;
-      }
-
-      shadow = ghostAct(shadow,shadow,pac,aiMode,frameCount);
-      speedy = ghostAct(speedy,shadow,pac,aiMode,frameCount);
-      if ( (pills <= 228) && !frightened )
-      {
-        bashful = ghostAct(bashful,shadow,pac,aiMode,frameCount);
-      }
-      if ( (pills <= 172) && !frightened )
-      {
-        pokey = ghostAct(pokey,shadow,pac,aiMode,frameCount);
-      }
-		}
-
+    setFrightened(&frightened, &shadow, &speedy, &bashful, &pokey, frightenedClock);
+    checkDeaths(&pac,&shadow,&speedy,&bashful,&pokey,&frameCount, &points);
     checkPill(pac.x, pac.y, &frightened, &frightenedClock, aiMode, &moveMode[0]);
 
-    if ( (!pac.alive) && (lives > 0) )
-		{
-			if ( lifeDeduct )
-			{
-				clock_gettime(CLOCK_REALTIME, &lEnd);
-				lives--;
-			}
-			diff = timeDiff(&end,lEnd);
-			if ( (diff >= 2) && !lifeDeduct )
-			{
-        reset(&keyPressed,&begin,&chngDir,&frightened,
-							&lifeDeduct,&frameCount,&deathCount,
-							&aiMode,&shadow,&speedy,&bashful,
-							&pokey,&pac);
-			}
-      lifeDeduct = false;
-		}
     if ( !begin )
     {
       clock_gettime(CLOCK_REALTIME, &start);
     }
-
-    drawScreen(ren,texArr,pac,deathCount,frameCount,frightenedClock,lives,begin,pokey,speedy,bashful,shadow);
-
-    if ( !quit && (pillCount() <= 0) )
+    else if ( pac.alive )
     {
-      quit = true;
+      lifeDeduct = true;
+      pac = movePac(pac, keyPressed,frameCount);
+
+      diff = timeDiff(&end,start);
+      if ( (diff >= moveMode[aiMode]) && (aiMode < 7) )
+      {
+        aiMode++;
+      }
+
+      shadow = moveGhost(shadow,shadow,pac,aiMode,frameCount);
+      speedy = moveGhost(speedy,shadow,pac,aiMode,frameCount);
+      if ( (pills <= 228) && !frightened )
+      {
+        bashful = moveGhost(bashful,shadow,pac,aiMode,frameCount);
+      }
+      if ( (pills <= 172) && !frightened )
+      {
+        pokey = moveGhost(pokey,shadow,pac,aiMode,frameCount);
+      }
     }
-    if ( !pac.alive && (deathCount < 33) )
+    else if ( lives > 0 )
     {
-      deathCount++;
+      if ( lifeDeduct )
+      {
+        clock_gettime(CLOCK_REALTIME, &lEnd);
+        lives--;
+      }
+      diff = timeDiff(&end,lEnd);
+      if ( (diff >= 2) && !lifeDeduct )
+      {
+        reset(&keyPressed,&begin,&chngDir,&frightened,
+              &lifeDeduct,&frameCount,&aiMode,&shadow,
+              &speedy,&bashful,&pokey,&pac);
+      }
+      lifeDeduct = false;
     }
-		else
-		{
-			frameCount++;
-      if ( frameCount >= 27 )
+    if(pac.alive || frameCount < 29)
+    {
+      frameCount++;
+      if ( frameCount >= 30 )
       {
         frameCount = 0;
       }
-		}
+    }
     points.total = points.ghosts + points.pills + points.lastLevel;
-	}
-	SDL_Quit();
-	return EXIT_SUCCESS;
+    drawScreen(ren,texArr,pac,frameCount,frameCount,frightenedClock,points.total,lives,begin,Sans,pokey,speedy,bashful,shadow);
+
+  }
+  SDL_Quit();
+  return EXIT_SUCCESS;
 }
 
 pacman setPacDir(pacman io_pac, int _newDir, bool *io_begin, bool *io_keyPressed)
@@ -336,31 +297,31 @@ int getDirOpts(ghost io_enemy)
 }
 void setFrightened(bool *io_frightened, ghost *io_shadow, ghost *io_speedy, ghost *io_bashful, ghost *io_pokey, struct timespec _frightenedClock)
 {
-	struct timespec end;
+  struct timespec end;
   if ( *io_frightened )
-	{
+  {
     if ( io_shadow->alive )
-		{
+    {
       io_shadow->frightened = true;
       io_shadow->dir = reverseDir(io_shadow->dir);
-		}
+    }
     if ( io_speedy->alive )
-		{
+    {
       io_speedy->frightened = true;
       io_speedy->dir = reverseDir(io_speedy->dir);
-		}
+    }
     if ( io_bashful->alive )
-		{
+    {
       io_bashful->frightened = true;
       io_bashful->dir = reverseDir(io_bashful->dir);
-		}
+    }
     if ( io_pokey->alive )
-		{
+    {
       io_pokey->frightened = true;
       io_pokey->dir = reverseDir(io_pokey->dir);
-		}
+    }
     *io_frightened = false;
-	}
+  }
 
   double diff = timeDiff(&end,_frightenedClock);
   if ( !io_shadow->alive || (diff >= 7) )
@@ -445,20 +406,20 @@ void checkPill(int _x, int _y, bool *io_frightened, struct timespec *io_fStart, 
 {
   int a = (int)round(_y/((float)c_blockSize))+1;
   int b = (int)round(_x/((float)c_blockSize))+1;
-	if ( map[a][b] == RPILL )
+  if ( map[a][b] == RPILL )
   {
     map[a][b] = BLACK;
   }
-	else if ( map[a][b] == POWERPILL )
-	{
-		map[a][b] = BLACK;
+  else if ( map[a][b] == POWERPILL )
+  {
+    map[a][b] = BLACK;
     *io_frightened = true;
     clock_gettime(CLOCK_REALTIME, io_fStart);
     for(int i = _aiMode; i < 7; i++)
-		{
+    {
       *(io_t+i)+=7;
-		}
-	}
+    }
+  }
 }
 void checkTeleport(int *io_x, int _dir)
 {
@@ -532,7 +493,7 @@ int checkMazeBlock(int _x, int _y)
 
   return type;
 }
-void checkDeaths(pacman *io_pac, ghost *io_shadow, ghost *io_speedy, ghost *io_bashful, ghost *io_pokey, score *points)
+void checkDeaths(pacman *io_pac, ghost *io_shadow, ghost *io_speedy, ghost *io_bashful, ghost *io_pokey,int *io_frameCount, score *points)
 {
   if ( io_shadow->frightened || !io_shadow->alive )
   {
@@ -540,7 +501,7 @@ void checkDeaths(pacman *io_pac, ghost *io_shadow, ghost *io_speedy, ghost *io_b
   }
   else if ( io_pac->alive && io_shadow->alive )
   {
-    io_pac->alive = checkPac(*io_shadow, *io_pac);
+    io_pac->alive = checkPac(*io_shadow, *io_pac, io_frameCount);
   }
   if ( io_speedy->frightened || !io_speedy->alive )
   {
@@ -548,7 +509,7 @@ void checkDeaths(pacman *io_pac, ghost *io_shadow, ghost *io_speedy, ghost *io_b
   }
   else if ( io_pac->alive && io_speedy->alive )
   {
-    io_pac->alive = checkPac(*io_speedy, *io_pac);
+    io_pac->alive = checkPac(*io_speedy, *io_pac, io_frameCount);
   }
   if ( io_bashful->frightened || !io_bashful->alive )
   {
@@ -556,7 +517,7 @@ void checkDeaths(pacman *io_pac, ghost *io_shadow, ghost *io_speedy, ghost *io_b
   }
   else if ( io_pac->alive && io_bashful->alive )
   {
-    io_pac->alive = checkPac(*io_bashful, *io_pac);
+    io_pac->alive = checkPac(*io_bashful, *io_pac, io_frameCount);
   }
   if ( io_pokey->frightened || !io_pokey->alive )
   {
@@ -564,14 +525,15 @@ void checkDeaths(pacman *io_pac, ghost *io_shadow, ghost *io_speedy, ghost *io_b
   }
   else if ( io_pac->alive && io_pokey->alive )
   {
-    io_pac->alive = checkPac(*io_pokey, *io_pac);
+    io_pac->alive = checkPac(*io_pokey, *io_pac, io_frameCount);
   }
 }
-bool checkPac(ghost _enemy, pacman _pac)
+bool checkPac(ghost _enemy, pacman _pac, int *io_frameCount)
 {
   int tlrnce = 3*c_blockSize/4;
   if ( (abs(_pac.x - _enemy.x) <= tlrnce) && (abs(_pac.y - _enemy.y) <= tlrnce) )
   {
+    *io_frameCount = 0;
     return false;
   }
   else
@@ -654,7 +616,7 @@ pacman movePac( pacman io_pac, int _keyPressed,int _frameCount)
   checkTeleport(&io_pac.x, io_pac.dir);
   return io_pac;
 }
-ghost ghostAct(ghost io_enemy, ghost _shad, pacman _target, int _aiMode, int _frameCount )
+ghost moveGhost(ghost io_enemy, ghost _shad, pacman _target, int _aiMode, int _frameCount )
 {
   if ( io_enemy.alive && (_aiMode%2 == 0) )
   {
@@ -668,28 +630,29 @@ ghost ghostAct(ghost io_enemy, ghost _shad, pacman _target, int _aiMode, int _fr
   {
     _target.x = 13*c_blockSize;
     _target.y = 13*c_blockSize;
-    io_enemy = moveShadow(io_enemy, _target, _frameCount);
+    io_enemy = moveShadow(io_enemy, _target);
   }
   else if ( io_enemy.frightened && !io_enemy.gate )
   {
-    io_enemy = moveFrightened(io_enemy,_frameCount);
+    io_enemy = moveFrightened(io_enemy);
   }
   else if (io_enemy.type == BASHFUL)
   {
-    ghost(*moved)(ghost,pacman,int,ghost);
-    moved = (ghost(*)(ghost,pacman,int,ghost))io_enemy.move;
-    io_enemy = moved(io_enemy, _target, _frameCount, _shad);
+    ghost(*moved)(ghost,pacman,ghost);
+    moved = (ghost(*)(ghost,pacman,ghost))io_enemy.move;
+    io_enemy = moved(io_enemy, _target, _shad);
   }
   else
   {
-    ghost(*moved)(ghost,pacman,int);
-    moved = (ghost(*)(ghost,pacman,int))io_enemy.move;
-    io_enemy = moved(io_enemy, _target, _frameCount);
+    ghost(*moved)(ghost,pacman);
+    moved = (ghost(*)(ghost,pacman))io_enemy.move;
+    io_enemy = moved(io_enemy, _target);
   }
+  moveSprite(&io_enemy.x,&io_enemy.y,io_enemy.dir, false, io_enemy.frightened, io_enemy.alive, _frameCount);
   checkTeleport(&io_enemy.x, io_enemy.dir);
   return io_enemy;
 }
-ghost moveFrightened(ghost io_enemy, int _frameCount)
+ghost moveFrightened(ghost io_enemy)
 {
   int a = 0;
   int temp;
@@ -716,30 +679,27 @@ ghost moveFrightened(ghost io_enemy, int _frameCount)
       }
     }
   }
-
-  moveSprite(&io_enemy.x, &io_enemy.y, io_enemy.dir, false, true, io_enemy.alive, _frameCount);
   return io_enemy;
 }
-ghost moveShadow(ghost io_enemy, pacman _target, int _frameCount)
+ghost moveShadow(ghost io_enemy, pacman _target)
 {
   int a = getDirOpts(io_enemy);
-	int temp;
+  int temp;
   int mhtnX = _target.x-io_enemy.x;
   int mhtnY = _target.y-io_enemy.y;
 
   temp = reverseDir(io_enemy.dir);
-	if ( a == 2 )
-	{
+  if ( a == 2 )
+  {
     io_enemy = setRandDir(io_enemy, temp);
-	}
+  }
   else if ( (a>2) && io_enemy.turn )
-	{
+  {
     io_enemy = setGhostDir(io_enemy, mhtnX, mhtnY, temp);
-	}
-  moveSprite(&io_enemy.x,&io_enemy.y,io_enemy.dir, false, false, io_enemy.alive, _frameCount);
+  }
   return io_enemy;
 }
-ghost movePokey(ghost io_enemy, pacman _target, int _frameCount)
+ghost movePokey(ghost io_enemy, pacman _target)
 {
   if ( io_enemy.y <= 11*c_blockSize )
   {
@@ -753,26 +713,22 @@ ghost movePokey(ghost io_enemy, pacman _target, int _frameCount)
   {
     int dist = abs(_target.x-io_enemy.x) + abs(_target.y-io_enemy.y);
     if ( (dist < 8*c_blockSize) && !io_enemy.loop )
-		{
+    {
       io_enemy.loop = true;
       io_enemy.tempX = io_enemy.x;
       io_enemy.tempY = io_enemy.y;
-		}
+    }
     if ( io_enemy.loop )
-		{
+    {
       io_enemy.loop = false;
       _target.x = io_enemy.tempX;
       _target.y = io_enemy.tempY;
-		}
-    io_enemy = moveShadow(io_enemy, _target, _frameCount);
-	}
-  else
-  {
-    moveSprite(&io_enemy.x,&io_enemy.y,io_enemy.dir, false, false, io_enemy.alive, _frameCount);
+    }
+    io_enemy = moveShadow(io_enemy, _target);
   }
   return io_enemy;
 }
-ghost moveBashful( ghost io_enemy, pacman _target, int _frameCount, ghost _shad)
+ghost moveBashful( ghost io_enemy, pacman _target, ghost _shad)
 {
 
   if ( io_enemy.y <= 11*c_blockSize )
@@ -783,10 +739,10 @@ ghost moveBashful( ghost io_enemy, pacman _target, int _frameCount, ghost _shad)
   {
     io_enemy.dir = UP;
   }
-  if ( !(io_enemy.gate) )
-	{
-		int vectorX;
-		int vectorY;
+  if ( !io_enemy.gate )
+  {
+    int vectorX;
+    int vectorY;
     switch (_target.dir)
     {
       case UP:
@@ -815,15 +771,11 @@ ghost moveBashful( ghost io_enemy, pacman _target, int _frameCount, ghost _shad)
     _target.x=_shad.x+vectorX;
     _target.y=_shad.y+vectorY;
 
-    io_enemy = moveShadow(io_enemy, _target, _frameCount);
-	}
-  else
-  {
-    moveSprite(&io_enemy.x,&io_enemy.y,io_enemy.dir, false, false, io_enemy.alive, _frameCount);
+    io_enemy = moveShadow(io_enemy, _target);
   }
   return io_enemy;
 }
-ghost moveSpeedy(ghost io_enemy, pacman _target, int _frameCount)
+ghost moveSpeedy(ghost io_enemy, pacman _target)
 {
   if ( io_enemy.y <= 11*c_blockSize )
   {
@@ -834,7 +786,7 @@ ghost moveSpeedy(ghost io_enemy, pacman _target, int _frameCount)
     io_enemy.dir = UP;
   }
   if ( !(io_enemy.gate) )
-	{
+  {
     switch(_target.dir)
     {
       case UP:
@@ -859,11 +811,7 @@ ghost moveSpeedy(ghost io_enemy, pacman _target, int _frameCount)
       }
     }
 
-    io_enemy = moveShadow(io_enemy, _target, _frameCount);
-  }
-  else
-  {
-    moveSprite(&io_enemy.x,&io_enemy.y,io_enemy.dir, false, false, io_enemy.alive, _frameCount);
+    io_enemy = moveShadow(io_enemy, _target);
   }
   return io_enemy;
 }
@@ -875,6 +823,7 @@ void moveSprite(int *io_x, int *io_y, int _dir, bool _slow, bool _frightened, bo
     if ( _frightened || (_frameCount%2 == 0) )
       step-=1;
   }
+  printf("%d\n",step);
   if ( !_alive )
   {
     step++;
@@ -905,10 +854,10 @@ void moveSprite(int *io_x, int *io_y, int _dir, bool _slow, bool _frightened, bo
 }
 
 void drawScreen(SDL_Renderer* io_ren, SDL_Texture* _texArr[], pacman _pac, int _deathCount,
-                int _frameCount, struct timespec _frightenedClock, int _lives, bool _begin, ...)
+                int _frameCount, struct timespec _frightenedClock,int _points, int _lives, bool _begin,TTF_Font* Sans, ...)
 {
   va_list ghostArgs;
-  va_start ( ghostArgs, _begin );
+  va_start ( ghostArgs, Sans );
   SDL_SetRenderDrawColor(io_ren, 0, 0, 0, 255);
   SDL_RenderClear(io_ren);
   drawMaze(io_ren, _texArr[1], _texArr[6]);
@@ -930,6 +879,7 @@ void drawScreen(SDL_Renderer* io_ren, SDL_Texture* _texArr[], pacman _pac, int _
   {
     drawStart(io_ren,_texArr[3]);
   }
+  drawScore(io_ren, _points, Sans);
   SDL_RenderPresent(io_ren);
   va_end ( ghostArgs );
 }
@@ -978,86 +928,89 @@ void drawAllEnemies(SDL_Renderer *io_ren, struct timespec _frightenedClock, int 
 }
 void drawGhost(SDL_Renderer *io_ren, SDL_Texture *io_tex, ghost _enemy, bool _frightened, struct timespec _fClock, int _ghostType, int _frameCount)
 {
-	struct timespec start;
+  struct timespec start;
   double diff = timeDiff(&start,_fClock);
-	int desc = 0;
+  int desc = 0;
   int anim = 5*(c_blockSize*2);
   if ( (_frameCount/15) == 0 )
-		anim = 0;
-	SDL_Rect block;
+    anim = 0;
+  SDL_Rect block;
   block.x=_enemy.x;
   block.y=_enemy.y;
   block.w=c_blockSize-1;
   block.h=c_blockSize-1;
-	SDL_Rect ghosty;
+  SDL_Rect ghosty;
   ghosty.w=c_blockSize*2;
   ghosty.h=c_blockSize*2;
   ghosty.x=_ghostType*(c_blockSize*2)+anim;
   ghosty.y=_enemy.dir*(c_blockSize*2);
   if ( _frightened )
-	{
-		if ( diff >= 5 )
-		{
-			desc = (int)(diff*10)%2;
-			if ( desc == 1 )
-			{
-        ghosty.x=5*(c_blockSize*2)+anim;
-        ghosty.y=c_blockSize*2;
-			}
-			else
-			{
-        ghosty.x=5*(c_blockSize*2)+anim;
-				ghosty.y=0;
-			}
-		}
-		else
-		{
-      ghosty.x=5*(c_blockSize*2)+anim;
+  {
+    desc = (int)(diff*10)%2;
+    ghosty.x=5*(c_blockSize*2)+anim;
+    if ( (diff >= 5) && (desc != 1) )
+    {
+      ghosty.y=0;
+    }
+    else
+    {
       ghosty.y=c_blockSize*2;
-		}
-	}
+    }
+  }
   SDL_RenderCopy(io_ren, io_tex,&ghosty, &block);
 }
 void drawPacman(SDL_Renderer *io_ren, SDL_Texture *io_tex, pacman _pac, int _frameCount)
 {
-	SDL_Rect copyBlock;
+  int playSpeed;
+  if(_pac.alive)
+  {
+    playSpeed = 5;
+  }
+  else
+  {
+    playSpeed = 3;
+  }
+  SDL_Rect copyBlock;
   copyBlock.x=_pac.x;
   copyBlock.y=_pac.y;
   copyBlock.w=c_blockSize;
   copyBlock.h=c_blockSize;
-	SDL_Rect pacBlock;
+  SDL_Rect pacBlock;
   pacBlock.w=c_blockSize*2;
   pacBlock.h=c_blockSize*2;
-  pacBlock.x=_pac.dir*(c_blockSize*2);
-  pacBlock.y=(_frameCount/7)*(c_blockSize*2);
   if ( _pac.dir == NONE )
-	{
-		pacBlock.x=0;
-		pacBlock.y=0;
-	}
+  {
+    pacBlock.x=0;
+    pacBlock.y=0;
+  }
+  else
+  {
+    pacBlock.x=_pac.dir*(c_blockSize*2);
+    pacBlock.y=(_frameCount/playSpeed)*(c_blockSize*2);
+  }
   SDL_RenderCopy(io_ren, io_tex,&pacBlock, &copyBlock);
 }
 void drawMaze(SDL_Renderer *io_ren, SDL_Texture *io_tex, SDL_Texture *io_wtex)
 {
-	SDL_Rect block;
-	SDL_Rect pill;
-	SDL_Rect wall;
-	pill.w = 25;
-	pill.h = 25;
-	wall.w = 25;
-	wall.h = 25;
-	wall.y = 0;
-	wall.x = 0;
+  SDL_Rect block;
+  SDL_Rect pill;
+  SDL_Rect wall;
+  pill.w = 25;
+  pill.h = 25;
+  wall.w = 25;
+  wall.h = 25;
+  wall.y = 0;
+  wall.x = 0;
 
-	for(int i = 1; i < ROWS; ++i)
-	{
-		for(int j = 1; j < COLS; ++j)
-		{
+  for(int i = 1; i < ROWS; ++i)
+  {
+    for(int j = 1; j < COLS; ++j)
+    {
       block.x=(j-1)*c_blockSize;
       block.y=(i-1)*c_blockSize;
       block.w=c_blockSize;
       block.h=c_blockSize;
-			switch(map[i][j])
+      switch(map[i][j])
       {
         case (BLACK):
         {
@@ -1096,24 +1049,46 @@ void drawMaze(SDL_Renderer *io_ren, SDL_Texture *io_tex, SDL_Texture *io_wtex)
       }
 
 
-		}
-	}
+    }
+  }
 }
+void drawScore(SDL_Renderer* io_ren, int _points, TTF_Font* Sans)
+{
+  char texPoints[1000];
+  sprintf(texPoints, "%d", _points);
+  int len = strlen(texPoints);
+  SDL_Color White = {255, 255, 255, 255};
+  SDL_Surface* surfaceMessage = TTF_RenderText_Solid(Sans, "Score: ", White);
+  SDL_Texture* Message = SDL_CreateTextureFromSurface(io_ren, surfaceMessage);
+  SDL_Rect Message_rect;
+  Message_rect.x = 10;
+  Message_rect.y = HEIGHT-5;
+  Message_rect.w = c_blockSize*3.5;
+  Message_rect.h = c_blockSize*1.2;
+  SDL_RenderCopy(io_ren, Message, NULL, &Message_rect);
+  Message_rect.x += 3.5*c_blockSize;
+  Message_rect.w = c_blockSize*len / 2;
+  surfaceMessage = TTF_RenderText_Solid(Sans, texPoints, White);
+  Message = SDL_CreateTextureFromSurface(io_ren, surfaceMessage);
+  SDL_RenderCopy(io_ren, Message, NULL, &Message_rect);
+  SDL_FreeSurface(surfaceMessage);
+}
+
 
 int pillCount()
 {
-	int count = 0;
-	for(int i = 0; i < ROWS; ++i)
-	{
-		for(int j = 0; j < COLS; ++j)
-		{
-			if ( (map[i][j] == RPILL) || (map[i][j] == POWERPILL) )
+  int count = 0;
+  for(int i = 0; i < ROWS; ++i)
+  {
+    for(int j = 0; j < COLS; ++j)
+    {
+      if ( (map[i][j] == RPILL) || (map[i][j] == POWERPILL) )
       {
         count++;
       }
-		}
-	}
-	return count;
+    }
+  }
+  return count;
 }
 int reverseDir(int _dir)
 {
@@ -1149,7 +1124,7 @@ double timeDiff(struct timespec *io_a, struct timespec _b)
   return (((*io_a).tv_sec - _b.tv_sec) + ( (*io_a).tv_nsec - _b.tv_nsec )/1E9);
 }
 void reset( bool *io_keyPressed, bool *io_begin, bool *io_chngDir, bool *io_frightened, bool *io_lifeDeduct,
-            int *io_frameCount, int *io_deathCount, int *io_aiMode, ghost *io_shadow,
+            int *io_frameCount, int *io_aiMode, ghost *io_shadow,
             ghost *io_speedy, ghost *io_bashful, ghost *io_pokey, pacman *io_pac)
 {
 
@@ -1171,7 +1146,6 @@ void reset( bool *io_keyPressed, bool *io_begin, bool *io_chngDir, bool *io_frig
   *io_frightened = false;
   *io_lifeDeduct = false;
   *io_frameCount = 0;
-  *io_deathCount = 0;
   *io_aiMode = 0;
 
 }
@@ -1179,15 +1153,15 @@ SDL_Texture *createTex(const char *c_path, SDL_Renderer *io_ren, SDL_Surface *io
 {
   io_image=IMG_Load(c_path);
   if ( !io_image )
-	{
-		printf("IMG_Load: %s\n", IMG_GetError());
-		//return EXIT_FAILURE;
-	}
+  {
+    printf("IMG_Load: %s\n", IMG_GetError());
+    //return EXIT_FAILURE;
+  }
 
-	SDL_Texture *tex = 0;
+  SDL_Texture *tex = 0;
   tex = SDL_CreateTextureFromSurface(io_ren, io_image);
   SDL_FreeSurface(io_image);
-	return tex;
+  return tex;
 }
 void createTexArray(int pathCount, SDL_Texture* texArr[], SDL_Renderer *io_ren, SDL_Surface *io_image, ...)
 {

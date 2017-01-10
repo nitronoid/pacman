@@ -36,7 +36,7 @@ DISTNAME      = Packman1.0.0
 DISTDIR = /home/s4902673/PPP/PacmanStudent/.tmp/Packman1.0.0
 LINK          = clang++
 LFLAGS        = -ccc-gcc-name g++ -Wl,-rpath,/opt/Qt5.7.0/5.7/gcc_64/lib
-LIBS          = $(SUBLIBS) -L/usr/local/lib -Wl,-rpath,/usr/local/lib -lSDL2 -lSDL2_image -L/opt/Qt5.7.0/5.7/gcc_64/lib -lQt5Core -lpthread 
+LIBS          = $(SUBLIBS) -L/usr/local/lib -Wl,-rpath,/usr/local/lib -lSDL2 -lSDL2_image -lSDL2_ttf -L/opt/Qt5.7.0/5.7/gcc_64/lib -lQt5Core -lpthread 
 AR            = ar cqs
 RANLIB        = 
 SED           = sed
@@ -51,7 +51,8 @@ OBJECTS_DIR   = ./
 SOURCES       = main.c 
 OBJECTS       = main.o
 DIST          = .qmake.stash \
-		Packman.pro map.h main.c
+		Packman.pro map.h \
+		pacman.h main.c
 QMAKE_TARGET  = Packman
 DESTDIR       = 
 TARGET        = Packman
@@ -384,7 +385,7 @@ dist: distdir FORCE
 distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
-	$(COPY_FILE) --parents map.h $(DISTDIR)/
+	$(COPY_FILE) --parents map.h pacman.h $(DISTDIR)/
 	$(COPY_FILE) --parents main.c $(DISTDIR)/
 
 
@@ -425,7 +426,8 @@ compiler_clean:
 
 ####### Compile
 
-main.o: main.c map.h
+main.o: main.c map.h \
+		pacman.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o main.o main.c
 
 ####### Install
