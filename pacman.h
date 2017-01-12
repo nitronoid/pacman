@@ -1,3 +1,9 @@
+///
+/// \brief contains structures used for both pacman, and ghost sprites as well as a structure to hold score
+/// \author Jack Diver
+/// \version 1.0
+
+
 #ifndef PACMAN_H
 #define PACMAN_H
 

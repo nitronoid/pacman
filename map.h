@@ -1,3 +1,8 @@
+///
+/// \brief contains the map for pacman and ghosts to move within / char array
+/// \author John Macey
+/// \version 2.0
+
 #ifndef MAP_H_
 #define MAP_H_
 #define ROWS 32
