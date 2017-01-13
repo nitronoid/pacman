@@ -2,6 +2,8 @@
 ///  @file main.c
 ///  @brief This file holds the main body of code, containing all of the functions used for the pacman game.
 ///  @author Jack Diver
+///  @version 7.2 13 January 2017
+///  Initial version 3 November 2016
 
 #include <time.h>
 #include <SDL2/SDL.h>
@@ -52,7 +54,7 @@ ghost moveBashful(ghost, pacman, ghost );
 ghost movePokey(ghost, pacman);
 void moveSprite( int*, int*, int, bool, bool, bool, int );
 
-void drawScreen(SDL_Renderer*, SDL_Texture*[], pacman, int, int, struct timespec, int, int, int, bool,TTF_Font*, ... );
+void drawScreen(SDL_Renderer*, SDL_Texture*[], pacman, int, struct timespec, int, int, int, bool,TTF_Font*, ... );
 void drawStart( SDL_Renderer*, SDL_Texture*);
 void drawGameOver( SDL_Renderer*, SDL_Texture*);
 void drawAllEnemies(SDL_Renderer*, struct timespec, int, SDL_Texture*, va_list);
@@ -64,7 +66,7 @@ void drawScore(SDL_Renderer*, int, int, const char*, TTF_Font* );
 int pillCount();
 int reverseDir( int );
 double timeDiff( struct timespec*, struct timespec );
-void reset(bool*, bool*, bool*, bool*, bool*, int*, int *, ghost*, ghost*, ghost*, ghost *io_pokey, pacman*);
+void reset(bool*, bool*, bool*, bool*, int*, int *, ghost*, ghost*, ghost*, ghost *io_pokey, pacman*);
 void resetMap();
 SDL_Texture *createTex( const char*, SDL_Renderer*, SDL_Surface* );
 void createTexArray(int, SDL_Texture*[], SDL_Renderer *, SDL_Surface *, ...);
@@ -115,10 +117,10 @@ int main()
 
   ghost shadow, speedy, bashful, pokey;
   pacman pac;
-  bool keyPressed, begin, chngDir, frightened, lifeDeduct;
+  bool keyPressed, begin, frightened, lifeDeduct;
   double diff;
   int frameCount, aiMode, lives = 3, level = 1;
-  reset(&keyPressed,&begin,&chngDir,&frightened,
+  reset(&keyPressed,&begin,&frightened,
         &lifeDeduct,&frameCount,&aiMode,&shadow,
         &speedy,&bashful,&pokey,&pac);
   int moveMode[7]={7,27,34,54,59,79,84};
@@ -185,7 +187,7 @@ int main()
       level++;
       points.lastLevel = points.ghosts + points.pills + points.lastLevel;
       points.ghosts = 0;
-      reset(&keyPressed,&begin,&chngDir,&frightened,
+      reset(&keyPressed,&begin,&frightened,
             &lifeDeduct,&frameCount,&aiMode,&shadow,
             &speedy,&bashful,&pokey,&pac);
       resetMap();
@@ -231,7 +233,7 @@ int main()
       diff = timeDiff(&end,lEnd);
       if ( (diff >= 2) && !lifeDeduct )
       {
-        reset(&keyPressed,&begin,&chngDir,&frightened,
+        reset(&keyPressed,&begin,&frightened,
               &lifeDeduct,&frameCount,&aiMode,&shadow,
               &speedy,&bashful,&pokey,&pac);
       }
@@ -250,14 +252,20 @@ int main()
     {
       saveScore(points.total);
     }
-    drawScreen(ren,texArr,pac,frameCount,frameCount,frightenedClock,points.total,highScore,lives,begin,Sans,pokey,speedy,bashful,shadow);
+    drawScreen(ren,texArr,pac,frameCount,frightenedClock,points.total,highScore,lives,begin,Sans,pokey,speedy,bashful,shadow);
 
   }
   SDL_Quit();
   return EXIT_SUCCESS;
 }
 
-// this function assigns the value input from the keyboard to pacman
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function assigns the value input from the keyboard to pacman
+/// @param[out] o_pac is a copy of pacmans current state to be modified and returned
+/// @param[in] _newDir this holds the value entered through the keyboard
+/// @param[out] o_begin this is a pointer which will start the game
+/// @param[out] o_keyPressed this value is changed to true when the user presses a key this frame
+//--------------------------------------------------------------------------------------------------------
 pacman setPacDir(pacman o_pac, int _newDir, bool *o_begin, bool *o_keyPressed)
 {
   //o_begin set to true so that game will start
@@ -270,8 +278,15 @@ pacman setPacDir(pacman o_pac, int _newDir, bool *o_begin, bool *o_keyPressed)
   o_pac.dir = _newDir;
   return o_pac;
 }
-// this function deduces the direction that will move the ghost closer to pacman
-ghost setGhostDir(ghost io_enemy, int _mhtnX, int _mhtnY, int _temp)
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function deduces the direction that will move the ghost closer to pacman
+/// @param[io] io_enemy is a copy of the current state of the ghost to be modified and returned
+/// @param[in] _mhtnX holds the X Manhattan distance from the ghost to its target
+/// @param[in] _mhtnY holds the Y Manhattan distance from the ghost to its target
+/// @param[in] _prev holds the previous direction of the ghost
+//--------------------------------------------------------------------------------------------------------
+ghost setGhostDir(ghost io_enemy, int _mhtnX, int _mhtnY, int _prev)
 {
   //check all directions for the ghost
   bool check[4];
@@ -295,50 +310,68 @@ ghost setGhostDir(ghost io_enemy, int _mhtnX, int _mhtnY, int _temp)
   }
   //for each direction, check that it is both valid and is not the previous direction
   //do this until the best valid direction is found
-  if ( (distA >= 0) && ((check[directions[0]]) && (_temp!=directions[0])) )
+  if ( (distA >= 0) && ((check[directions[0]]) && (_prev!=directions[0])) )
   {
     io_enemy.dir = directions[0];
   }
-  else if ( (distA < 0) && ((check[directions[1]]) && (_temp!=directions[1])) )
+  else if ( (distA < 0) && ((check[directions[1]]) && (_prev!=directions[1])) )
   {
     io_enemy.dir = directions[1];
   }
-  else if ( (distB >= 0) && ((check[directions[2]]) && (_temp!=directions[2])) )
+  else if ( (distB >= 0) && ((check[directions[2]]) && (_prev!=directions[2])) )
   {
     io_enemy.dir = directions[2];
   }
-  else if ( (check[directions[3]]) && (_temp!=directions[3]) )
+  else if ( (check[directions[3]]) && (_prev!=directions[3]) )
   {
     io_enemy.dir = directions[3];
   }
   return io_enemy;
 }
-// this function assigns a random valid direction to a ghost
-ghost setRandDir(ghost io_enemy, int temp)
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function assigns a random valid direction to a ghost
+/// @param[io] io_enemy is a copy of the current state of the ghost to be modified and returned
+/// @param[in] _prev holds the previous direction of the ghost
+//--------------------------------------------------------------------------------------------------------
+ghost setRandDir(ghost io_enemy, int _prev)
 {
   //the ghost will turn
   io_enemy.turn = true;
   //checks that the direction is valid and not the previous direction
-  while( (!checkMove(io_enemy.dir,io_enemy.x,io_enemy.y,false,io_enemy.alive)) || (io_enemy.dir == temp) )
+  while( (!checkMove(io_enemy.dir,io_enemy.x,io_enemy.y,false,io_enemy.alive)) || (io_enemy.dir == _prev) )
   {
     io_enemy.dir = rand()%4;
   }
   return io_enemy;
 }
-// this function counts the ammount of valid directions that the ghost can move in
-int getDirOpts(ghost io_enemy)
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function counts the ammount of valid directions that the ghost can move in
+/// @param[io] io_enemy is a copy of the current state of the ghost
+//--------------------------------------------------------------------------------------------------------
+int getDirOpts(ghost _enemy)
 {
-  int a = 0;
+  int options = 0;
   for(int i = 0; i<4; ++i)
   {
-    if ( checkMove (i,io_enemy.x,io_enemy.y,false,io_enemy.alive) )
+    if ( checkMove (i,_enemy.x,_enemy.y,false,_enemy.alive) )
     {
-      a++;
+      options++;
     }
   }
-  return a;
+  return options;
 }
-// this function checks whether a ghost is frightened and modifies its state
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function checks whether a ghost is frightened and modifies its state
+/// @param[io] io_frightened tells us whether pacman has eaten a powerpill
+/// @param[io] io_shadow holds the current state of the red ghost to be modified and returned
+/// @param[io] io_speedy holds the current state of the pink ghost to be modified and returned
+/// @param[io] io_bashful holds the current state of the blue ghost to be modified and returned
+/// @param[io] io_pokey holds the current state of the orange ghost to be modified and returned
+/// @param[in] _frightenedClock holds the time that has elapsed since pacman ate the power pill
+//--------------------------------------------------------------------------------------------------------
 void setFrightened(bool *io_frightened, ghost *io_shadow, ghost *io_speedy, ghost *io_bashful, ghost *io_pokey, struct timespec _frightenedClock)
 {
   //checks whether pacman has eaten the powerpill
@@ -391,89 +424,138 @@ void setFrightened(bool *io_frightened, ghost *io_shadow, ghost *io_speedy, ghos
   }
 }
 
-bool checkMove(int _dir, int _x, int _y, bool _slow, bool _alive)
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function checks whether the sprite can continue moving in its current direction
+/// @param[in] _dir holds the direction of the sprite
+/// @param[in] _x holds the x co-ordinate of the sprite
+/// @param[in] _y holds the y co-ordinate of the sprite
+/// @param[in] _slow tells the function whether to check 2 or 3 pixels ahead
+/// @param[in] _alive tells the function whether the sprite is alive as it moves faster when dead
+//--------------------------------------------------------------------------------------------------------
+bool checkMove(int _dir, int _x, int _y, bool _pac, bool _alive)
 {
+  //we assume that the move is valid until we find otherwise
   bool valid = true;
   int a,b,c;
+  //the step is the ammount of pixels we are checking ahead of the sprite
   int step = g_c_blockSize*g_c_scale;
-  if ( !_slow )
+  if ( !_pac )
   {
+    //we check one pixel further for pacman as this sprite moves faster
     step+=1;
   }
+  //this variable holds the distance from the centre of the pacman block to its edges
   int dim = (g_c_blockSize - 1) / 2 - 1;
+  //dependant on the direction the sprite is moving we check diffrent corners of the block
   switch (_dir)
   {
     case UP:
     {
+      //if the sprite moves up we only need to check the two upper corners of the block
+      //to access a part of the map array we scale the pixel co-ordinates down by blocksize
       a = round((_y - (step + dim)) / ((float)g_c_blockSize)) + 1;
       b = round((_x - dim) / ((float)g_c_blockSize)) + 1;
       c = round((_x + dim) / ((float)g_c_blockSize)) + 1;
+      //we check whether the next position of the block is in an area that is not allowed
       valid =!( ((map[a][b] == BLUE) || (map[a][c] == BLUE)) ||
-              ( (_slow || _alive) && ((map[a][b] == GATE) || (map[a][c] == GATE)))
+              ( (_pac || _alive) && ((map[a][b] == GATE) || (map[a][c] == GATE)))
               );
       break;
     }
     case DOWN:
     {
+      //if the sprite moves up we only need to check the two lower corners of the block
+      //to access a part of the map array we scale the pixel co-ordinates down by blocksize
       a = round((_y + (step + dim)) / ((float)g_c_blockSize)) + 1;
       b = round((_x - dim) / ((float)g_c_blockSize)) + 1;
       c = round((_x + dim) / ((float)g_c_blockSize)) + 1;
+      //we check whether the next position of the block is in an area that is not allowed
       valid =!( ((map[a][b] == BLUE) || (map[a][c] == BLUE)) ||
-              ( (_slow || _alive) && ((map[a][b] == GATE) || (map[a][c] == GATE)))
+              ( (_pac || _alive) && ((map[a][b] == GATE) || (map[a][c] == GATE)))
               );
       break;
     }
     case LEFT:
     {
+      //if the sprite moves left we only need to check the two left hand side corners of the block
+      //to access a part of the map array we scale the pixel co-ordinates down by blocksize
       a = round((_y + dim) / ((float)g_c_blockSize)) + 1;
       b = round((_y - dim) / ((float)g_c_blockSize)) + 1;
       c = round((_x - (step + dim)) / ((float)g_c_blockSize)) + 1;
+      //we check whether the next position of the block is in an area that is not allowed
       valid =!( ((map[a][c] == BLUE) || (map[b][c] == BLUE)) ||
-              ( (_slow || _alive) && ((map[a][c] == GATE) || (map[b][c] == GATE)))
+              ( (_pac || _alive) && ((map[a][c] == GATE) || (map[b][c] == GATE)))
               );
       break;
     }
     case RIGHT:
     {
+      //if the sprite moves up we only need to check the two right hand side corners of the block
+      //to access a part of the map array we scale the pixel co-ordinates down by blocksize
       a = round((_y + dim) / ((float)g_c_blockSize)) + 1;
       b = round((_y - dim) / ((float)g_c_blockSize)) + 1;
       c = round((_x + (step + dim)) / ((float)g_c_blockSize)) + 1;
+      //we check whether the next position of the block is in an area that is not allowed
       valid =!( ((map[a][c] == BLUE) || (map[b][c] == BLUE)) ||
-              ( (_slow || _alive) && ((map[a][c] == GATE) || (map[b][c] == GATE)))
+              ( (_pac || _alive) && ((map[a][c] == GATE) || (map[b][c] == GATE)))
               );
       break;
     }
     case NONE:
     {
+      //if the direction is none then we don't want the sprite to move
       valid = false;
       break;
     }
   }
   return valid;
 }
-void checkPill(int _x, int _y, bool *io_frightened, struct timespec *io_fStart, int _aiMode, int *io_t)
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function checks whether pacman is currently eating a pill
+/// @param[in] _x holds the x co-ordinate of the sprite
+/// @param[in] _y holds the y co-ordinate of the sprite
+/// @param[io] io_frightened may need to be modified if pacman collides and eats a power pill
+/// @param[io] io_frightened start is a pointer to the frightened clock which will need to be started if a power pill is eaten
+/// @param[in] _aiMode holds the current movement mode for the ghosts
+/// @param[io] io_moveModes is the array of times for which the movement modes will change
+//--------------------------------------------------------------------------------------------------------
+void checkPill(int _x, int _y, bool *io_frightened, struct timespec *io_frightenedStart, int _aiMode, int *io_moveModes)
 {
+  //to access a part of the map array we scale the pixel co-ordinates down by blocksize
   int a = (int)round(_y/((float)g_c_blockSize))+1;
   int b = (int)round(_x/((float)g_c_blockSize))+1;
+  //if pacman eats a pill we replace that block with an empty one
   if ( map[a][b] == RPILL )
   {
     map[a][b] = BLACK;
   }
+  //if pacman eats a power pill we replace the block with an empty one
+  //we also set the state of the ghosts to frightned and start the clock timer
   else if ( map[a][b] == POWERPILL )
   {
     map[a][b] = BLACK;
     *io_frightened = true;
-    clock_gettime(CLOCK_REALTIME, io_fStart);
+    clock_gettime(CLOCK_REALTIME, io_frightenedStart);
+    //we also add 7 seconds to each movement mode change for the ghosts to account for the time spent frightned
     for(int i = _aiMode; i < 7; i++)
     {
-      *(io_t+i)+=7;
+      *(io_moveModes+i)+=7;
     }
   }
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function checks whether a sprite is in the teleport tunnel and moves it accordingly
+/// @param[io] io_x is a pointer to the x co-ordinate of the sprite
+/// @param[in] _dir is the current direction of the sprite
+//--------------------------------------------------------------------------------------------------------
 void checkTeleport(int *io_x, int _dir)
 {
+  //first we make the boundaries which when crossed will teleport the sprite
   int startBound = -(g_c_blockSize / 5);
   int endBound = (COLS - 1) * g_c_blockSize + (3 * startBound);
+  //then we check both and if one is met the sprite is teleported using its x co-ordinate
   if ( (*io_x - g_c_blockSize * 0.5 <= startBound) && (_dir == LEFT) )
   {
     *io_x = endBound - g_c_blockSize * 0.25;
@@ -483,8 +565,15 @@ void checkTeleport(int *io_x, int _dir)
     *io_x = 0;
   }
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function analyses the map and assigns a texture from a sprite sheet to create the original pacman maze
+/// @param[in] _x holds the x co-ordinate of the sprite
+/// @param[in] _y holds the y co-ordinate of the sprite
+//--------------------------------------------------------------------------------------------------------
 int checkMazeBlock(int _x, int _y)
 {
+  //using the x and y co-ordinates of the block we obtain the values of all the surrounding blocks
   int type;
   int left = map[_y][_x-1];
   int right = map[_y][_x+1];
@@ -495,6 +584,7 @@ int checkMazeBlock(int _x, int _y)
   int upperRight = map[_y-1][_x+1];
   int lowerRight = map[_y+1][_x+1];
 
+  //through a series of checks to the surrounding blocks we find correct texture
   if ( (right != BLUE) || (left != BLUE) )
   {
     type = 0;
@@ -542,8 +632,20 @@ int checkMazeBlock(int _x, int _y)
 
   return type;
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function checks all of the ghosts for collision with pacman and updates their alive status
+/// @param[io] io_pac is a pointer to the pacman sprite
+/// @param[io] io_shadow is a pointer to the red ghost sprite
+/// @param[io] io_speedy is a pointer to the pink ghost sprite
+/// @param[io] io_bashful is a pointer to the blue ghost sprite
+/// @param[io] io_pokey is a pointer to the orange ghost sprite
+/// @param[io] io_frameCount is a pointer to current frame count
+/// @param[io] io_points is a pointer to the current ammount of points that the player has
+//--------------------------------------------------------------------------------------------------------
 void checkDeaths(pacman *io_pac, ghost *io_shadow, ghost *io_speedy, ghost *io_bashful, ghost *io_pokey,int *io_frameCount, score *io_points)
 {
+  //if a ghost collides with pacman and it is not frightened, pacman is set to dead, if the ghost is frightened then it is set to dead
   if ( io_shadow->frightened || !io_shadow->alive )
   {
     io_shadow->alive = checkGhost(io_shadow, *io_pac, io_points);
@@ -577,9 +679,18 @@ void checkDeaths(pacman *io_pac, ghost *io_shadow, ghost *io_speedy, ghost *io_b
     io_pac->alive = checkPac(*io_pokey, *io_pac, io_frameCount);
   }
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function checks whether pacman is colliding with a ghost, and so if it is alive
+/// @param[in] _enemy holds a copy of the ghosts current state
+/// @param[in] _pac holds a copy of pacmans current state
+/// @param[io] io_frameCount is a pointer to current frame count
+//--------------------------------------------------------------------------------------------------------
 bool checkPac(ghost _enemy, pacman _pac, int *io_frameCount)
 {
+  //set a value for the distance between the two sprites centres which will count as a collision
   int tlrnce = 3*g_c_blockSize/4;
+  //if the distance is less than the above value then pacman is set to dead
   if ( (abs(_pac.x - _enemy.x) <= tlrnce) && (abs(_pac.y - _enemy.y) <= tlrnce) )
   {
     *io_frameCount = 0;
@@ -590,13 +701,23 @@ bool checkPac(ghost _enemy, pacman _pac, int *io_frameCount)
     return true;
   }
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function checks whether a ghost is colliding with pacman, and so if it is alive
+/// @param[io] io_enemy is a pointer to the ghost
+/// @param[in] _pac is a copy of pacmans current state
+/// @param[io] io_points is a pointer to the current score
+//--------------------------------------------------------------------------------------------------------
 bool checkGhost(ghost *io_enemy, pacman _pac, score *io_points)
 {
+  //set a value for the distance between the two sprites centres which will count as a collision
   int tlrnce = 3*g_c_blockSize/4;
+  //if the distance is less than the above value and the ghost is alive, then the ghost is set to dead
   if ( io_enemy->alive )
   {
     if ( (abs(_pac.x - io_enemy->x) <= tlrnce) && (abs(_pac.y - io_enemy->y) <= tlrnce) )
     {
+      //the players score is updated for killing the ghost
       io_points->ghosts+=100;
       return false;
     }
@@ -607,11 +728,13 @@ bool checkGhost(ghost *io_enemy, pacman _pac, score *io_points)
   }
   else
   {
+    //if the ghost is dead we check to see if it has reached the home area
     if ( (abs(io_enemy->y - 14*g_c_blockSize) <= tlrnce) &&
          ((abs(io_enemy->x - 14*g_c_blockSize) <= tlrnce) ||
          (abs(io_enemy->x - 13*g_c_blockSize) <= tlrnce))
        )
     {
+      //if the ghost has reached the home area we set it back to alive
       io_enemy->dir = reverseDir(io_enemy->dir);
       return true;
     }
@@ -623,50 +746,72 @@ bool checkGhost(ghost *io_enemy, pacman _pac, score *io_points)
 
 }
 
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function calculates the new co-ordinates for pacman to move
+/// @param[io] io_pac is a copy of pacmans current state to be modified and returned
+/// @param[in] _keyPressed tells us whether a key ahs been pressed this frame
+/// @param[in] _frameCount holds the current frame
+//--------------------------------------------------------------------------------------------------------
 pacman movePac( pacman io_pac, int _keyPressed,int _frameCount)
 {
-  bool move, moveBckUp, movePrdct = false;
-  move = checkMove(io_pac.dir,io_pac.x,io_pac.y,true,true);
 
+  bool moveCurrent, moveBackUp, movePredict = false;
+  //first we check whether the current direction is valid
+  moveCurrent = checkMove(io_pac.dir,io_pac.x,io_pac.y,true,true);
+  //next we check the requested direction
   if ( io_pac.last != NONE )
   {
-    movePrdct = checkMove(io_pac.last,io_pac.x,io_pac.y,true,true);
+    movePredict = checkMove(io_pac.last,io_pac.x,io_pac.y,true,true);
   }
   else
   {
-    movePrdct = false;
+    movePredict = false;
   }
-
-  moveBckUp = checkMove(io_pac.temp,io_pac.x,io_pac.y,true,true);
-
-  if ( (movePrdct == true) && (_keyPressed == false) )
+  //finally we check the back up direction
+  moveBackUp = checkMove(io_pac.temp,io_pac.x,io_pac.y,true,true);
+  //if the requested direction is valid then we set the current direction to that and make the move
+  if ( (movePredict == true) && (_keyPressed == false) )
   {
     io_pac.dir = io_pac.last;
     io_pac.last = NONE;
     io_pac.temp = NONE;
     moveSprite(&io_pac.x, &io_pac.y, io_pac.dir, true, false,true,_frameCount);
   }
-  else if ( move == true )
+  // if requested is invalid but the current direction is valid then we use that to move
+  else if ( moveCurrent == true )
   {
     moveSprite(&io_pac.x, &io_pac.y, io_pac.dir, true, false,true,_frameCount);
   }
-  else if ( moveBckUp == true )
+  //if the requested and current are both invalid we use the back up direction to move
+  else if ( moveBackUp == true )
   {
     io_pac.last = io_pac.dir;
     io_pac.dir = io_pac.temp;
     moveSprite(&io_pac.x, &io_pac.y, io_pac.dir, true, false,true,_frameCount);
   }
+  //if all of the directions are invalid we don't move pacman
   else
   {
     io_pac.dir = NONE;
     //io_pac.last = NONE;
     io_pac.temp = NONE;
   }
+  //finally we check to see if the sprite has reached the end of the tunnel and then teleport it
   checkTeleport(&io_pac.x, io_pac.dir);
   return io_pac;
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function chooses which function to call and modifies the target before moving the ghost
+/// @param[io] io_enemy is a copy of the ghosts current state to be modified and returned
+/// @param[in] _shad is a copy of the red ghosts current state
+/// @param[in] _target holds the position and state of where the ghosts are targeting
+/// @param[in] _aiMode tells the ghosts whether to scatter or aim for the target
+/// @param[in] _frameCount holds the current frame which will be used to slow down movement
+//--------------------------------------------------------------------------------------------------------
 ghost moveGhost(ghost io_enemy, ghost _shad, pacman _target, int _aiMode, int _frameCount )
 {
+  //if the ghost is alive and and move mode is even we scatter it
   if ( io_enemy.alive && (_aiMode%2 == 0) )
   {
     _target.x = io_enemy.scatX;
@@ -675,46 +820,53 @@ ghost moveGhost(ghost io_enemy, ghost _shad, pacman _target, int _aiMode, int _f
     _shad.x = 0;
     _shad.y = 0;
   }
+  //if the ghost is dead we set its target to home
   if ( !io_enemy.alive )
   {
     _target.x = 13*g_c_blockSize;
     _target.y = 13*g_c_blockSize;
     io_enemy = moveShadow(io_enemy, _target);
   }
+  //if the ghost is frightened we move it randomly
   else if ( io_enemy.frightened && !io_enemy.gate )
   {
     io_enemy = moveFrightened(io_enemy);
   }
+  //if the ghost is blue then we must cast its function differently as it has an extra parameter
   else if (io_enemy.type == BASHFUL)
   {
     ghost(*moved)(ghost,pacman,ghost);
     moved = (ghost(*)(ghost,pacman,ghost))io_enemy.move;
     io_enemy = moved(io_enemy, _target, _shad);
   }
+  //if the ghost is not blue we call its move function
   else
   {
     ghost(*moved)(ghost,pacman);
     moved = (ghost(*)(ghost,pacman))io_enemy.move;
     io_enemy = moved(io_enemy, _target);
   }
+  //now that we've altered the state of the sprite we move it
   moveSprite(&io_enemy.x,&io_enemy.y,io_enemy.dir, false, io_enemy.frightened, io_enemy.alive, _frameCount);
+  //finally we check to see if the sprite has reached the end of the tunnel and then teleport it
   checkTeleport(&io_enemy.x, io_enemy.dir);
   return io_enemy;
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function calculates the new co-ordinates for the ghost to move while frightened
+/// @param[io] io_enemy holds the current state of the ghost to be modified and returned
+//--------------------------------------------------------------------------------------------------------
 ghost moveFrightened(ghost io_enemy)
 {
-  int a = 0;
+  //first we calculate how many directions the ghost can move in
+  int options = getDirOpts(io_enemy);
   int temp;
-  for(int i = 0; i<4; ++i)
-  {
-    if ( checkMove(i,io_enemy.x,io_enemy.y,false,io_enemy.alive) )
-    {
-      a++;
-    }
-  }
 
+  //then we store the opposite direction
   temp = reverseDir(io_enemy.dir);
-  if ( (a > 1) && ((abs(io_enemy.tempX - io_enemy.x) > 2) || (abs(io_enemy.tempY - io_enemy.y) > 2)) )
+  //we randomly select directions until one that is not opposite and is also valid has been assigned
+  if ( (options > 1) && ((abs(io_enemy.tempX - io_enemy.x) > 2) || (abs(io_enemy.tempY - io_enemy.y) > 2)) )
   {
     io_enemy.tempX = io_enemy.x;
     io_enemy.tempY = io_enemy.y;
@@ -730,26 +882,43 @@ ghost moveFrightened(ghost io_enemy)
   }
   return io_enemy;
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function is the basis of all ghost movements, but is used alone to move the red ghost
+/// @param[io] io_enemy holds the current state of the ghost to be modified and returned
+/// @param[in] _target holds the position and state of where the ghosts are targeting
+//--------------------------------------------------------------------------------------------------------
 ghost moveShadow(ghost io_enemy, pacman _target)
 {
-  int a = getDirOpts(io_enemy);
+  //first we calculate how many directions the ghost can move in
+  int options = getDirOpts(io_enemy);
   int temp;
+  //then we calculate the distance in both axis from the ghost to its target
   int mhtnX = _target.x-io_enemy.x;
   int mhtnY = _target.y-io_enemy.y;
 
   temp = reverseDir(io_enemy.dir);
-  if ( a == 2 )
+  //if there are 2 directions we randomly select one that is valid and not opposite
+  if ( options == 2 )
   {
     io_enemy = setRandDir(io_enemy, temp);
   }
-  else if ( (a>2) && io_enemy.turn )
+  //if there are more than two options we use the ghost logic to select the best direction
+  else if ( (options>2) && io_enemy.turn )
   {
     io_enemy = setGhostDir(io_enemy, mhtnX, mhtnY, temp);
   }
   return io_enemy;
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function builds on the red ghost movement but switches the target to itself if it gets within 8 tiles of pacman
+/// @param[io] io_enemy holds the current state of the ghost to be modified and returned
+/// @param[in] _target holds the position and state of where the ghosts are targeting
+//--------------------------------------------------------------------------------------------------------
 ghost movePokey(ghost io_enemy, pacman _target)
 {
+  //This function first must check that the ghost has left its home zone
   if ( io_enemy.y <= 11*g_c_blockSize )
   {
     io_enemy.gate = false;
@@ -758,28 +927,39 @@ ghost movePokey(ghost io_enemy, pacman _target)
   {
     io_enemy.dir = UP;
   }
+  //if it has left the home we calculate its distance from the target
   if ( !(io_enemy.gate) )
   {
     int dist = abs(_target.x-io_enemy.x) + abs(_target.y-io_enemy.y);
+    //if it is less than 8 tiles away we move it randomly
     if ( (dist < 8*g_c_blockSize) && !io_enemy.loop )
     {
       io_enemy.loop = true;
       io_enemy.tempX = io_enemy.x;
       io_enemy.tempY = io_enemy.y;
     }
+    //if it is more than 8 tiles away we move it the same as the red ghost
     if ( io_enemy.loop )
     {
       io_enemy.loop = false;
       _target.x = io_enemy.tempX;
       _target.y = io_enemy.tempY;
     }
+    //once the target tile has been chosen we move it the same as the red ghost
     io_enemy = moveShadow(io_enemy, _target);
   }
   return io_enemy;
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function uses a vector from the red ghost to pacman and doubles that to give a target tile
+/// @param[io] io_enemy holds the current state of the ghost to be modified and returned
+/// @param[in] _target holds the position and state of where the ghosts are targeting
+/// @param[in] _shad holds the current state of the red ghost
+//--------------------------------------------------------------------------------------------------------
 ghost moveBashful( ghost io_enemy, pacman _target, ghost _shad)
 {
-
+  //This function first must check that the ghost has left its home zone
   if ( io_enemy.y <= 11*g_c_blockSize )
   {
     io_enemy.gate = false;
@@ -788,6 +968,7 @@ ghost moveBashful( ghost io_enemy, pacman _target, ghost _shad)
   {
     io_enemy.dir = UP;
   }
+  //if the ghost has left home we calculate a vector from the red ghost to pacman and double it
   if ( !io_enemy.gate )
   {
     int vectorX;
@@ -817,15 +998,23 @@ ghost moveBashful( ghost io_enemy, pacman _target, ghost _shad)
     }
     vectorX = (_target.x-_shad.x)*2;
     vectorY = (_target.y-_shad.y)*2;
+    // we find the tile at the end of this vector
     _target.x=_shad.x+vectorX;
     _target.y=_shad.y+vectorY;
-
+    // then with the new target we move like the red ghost
     io_enemy = moveShadow(io_enemy, _target);
   }
   return io_enemy;
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function builds on the red ghost movement but modifies the target to 4 tiles ahead of pacman
+/// @param[io] io_enemy holds the current state of the ghost to be modified and returned
+/// @param[in] _target holds the position and state of where the ghosts are targeting
+//--------------------------------------------------------------------------------------------------------
 ghost moveSpeedy(ghost io_enemy, pacman _target)
 {
+  //This function first must check that the ghost has left its home zone
   if ( io_enemy.y <= 11*g_c_blockSize )
   {
     io_enemy.gate = false;
@@ -834,6 +1023,7 @@ ghost moveSpeedy(ghost io_enemy, pacman _target)
   {
     io_enemy.dir = UP;
   }
+  //if the ghost has left home we find the tile 4 ahead of pacman in his current direction
   if ( !(io_enemy.gate) )
   {
     switch(_target.dir)
@@ -859,15 +1049,26 @@ ghost moveSpeedy(ghost io_enemy, pacman _target)
         break;
       }
     }
-
+    //with the new target tile we move like the red ghost
     io_enemy = moveShadow(io_enemy, _target);
   }
   return io_enemy;
 }
-void moveSprite(int *io_x, int *io_y, int _dir, bool _slow, bool _frightened, bool _alive, int _frameCount)
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function takes the direction and co-ordinates of a sprite then modifies the values to move it
+/// @param[io] io_x is a pointer to the x co-ordinate of the sprite
+/// @param[io] io_y is a pointer to the y co-ordinate of the sprite
+/// @param[in] _dir holds the current direction of the sprite
+/// @param[in] _ghost tells us whether the sprite is a ghost or pacman
+/// @param[in] _frightened tells us whether the sprite is frightened and so how fast to move it
+/// @param[in] _alive tells us whether the sprite is alive and so how fast to move it
+/// @param[in] _frameCount holds the current frame which we use to alternate movement speed
+//--------------------------------------------------------------------------------------------------------
+void moveSprite(int *io_x, int *io_y, int _dir, bool _pac, bool _frightened, bool _alive, int _frameCount)
 {
   int step = g_c_blockSize*g_c_scale;
-  if ( !_slow )
+  if ( !_pac )
   {
     if ( _frightened || (_frameCount%2 == 0) )
       step-=1;
@@ -901,8 +1102,22 @@ void moveSprite(int *io_x, int *io_y, int _dir, bool _slow, bool _frightened, bo
   }
 }
 
-void drawScreen(SDL_Renderer* io_ren, SDL_Texture* _texArr[], pacman _pac, int _deathCount,
-                int _frameCount, struct timespec _frightenedClock, int _points, int _highScore, int _lives, bool _begin,TTF_Font* io_sans, ...)
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function is used to call all other draw functions to assemble and present the screen
+/// @param[io] io_ren is the SDL_Renderer used to draw our graphics
+/// @param[in] _texArray is the array that holds all the textures loaded from images
+/// @param[in] _pac holds the current state of pacman
+/// @param[in] _frameCount holds the current frame to time animations
+/// @param[in] _frightenedClock holds the time spent in frightened mode
+/// @param[in] _points holds the points to be displayed on screen
+/// @param[in] _highScore holds the highest score to be displayed on screen
+/// @param[in] _lives holds the current ammount of lives to be displayed
+/// @param[in] _begin decides whether the start screen is drawn
+/// @param[io] io_sans is the font used to draw the scores
+//--------------------------------------------------------------------------------------------------------
+void drawScreen(SDL_Renderer* io_ren, SDL_Texture* _texArr[], pacman _pac, int _frameCount,
+                struct timespec _frightenedClock, int _points, int _highScore, int _lives, bool _begin,TTF_Font* io_sans, ...)
 {
   va_list ghostArgs;
   va_start ( ghostArgs, io_sans );
@@ -916,12 +1131,12 @@ void drawScreen(SDL_Renderer* io_ren, SDL_Texture* _texArr[], pacman _pac, int _
   }
   else if ( _lives > 0 )
   {
-    drawPacman(io_ren, _texArr[5], _pac, _deathCount);
+    drawPacman(io_ren, _texArr[5], _pac, _frameCount);
   }
   if ( _lives <= 0 )
   {
     drawGameOver(io_ren,_texArr[4]);
-    drawPacman(io_ren, _texArr[5], _pac, _deathCount);
+    drawPacman(io_ren, _texArr[5], _pac, _frameCount);
   }
   if ( !_begin )
   {
@@ -932,6 +1147,12 @@ void drawScreen(SDL_Renderer* io_ren, SDL_Texture* _texArr[], pacman _pac, int _
   SDL_RenderPresent(io_ren);
   va_end ( ghostArgs );
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function is used to draw the start screen
+/// @param[io] io_ren is the SDL_Renderer used to draw our graphics
+/// @param[io] io_tex is the start screen texture
+//--------------------------------------------------------------------------------------------------------
 void drawStart(SDL_Renderer *io_ren, SDL_Texture *io_tex)
 {
   SDL_Rect screenBlock;
@@ -946,6 +1167,12 @@ void drawStart(SDL_Renderer *io_ren, SDL_Texture *io_tex)
   img.h = 775;
   SDL_RenderCopy(io_ren,io_tex,&img,&screenBlock);
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function is used to draw the game over screen
+/// @param[io] io_ren is the SDL_Renderer used to draw our graphics
+/// @param[io] io_tex is the game over screen texture
+//--------------------------------------------------------------------------------------------------------
 void drawGameOver(SDL_Renderer *io_ren, SDL_Texture *io_tex)
 {
   SDL_Rect screenBlock;
@@ -960,6 +1187,15 @@ void drawGameOver(SDL_Renderer *io_ren, SDL_Texture *io_tex)
   img.h = 775;
   SDL_RenderCopy(io_ren,io_tex,&img,&screenBlock);
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function is used to call the drawGhost function for all given ghosts
+/// @param[io] io_ren is the SDL_Renderer used to draw our graphics
+/// @param[in] _frightenedClock holds the current time spent frightened
+/// @param[in] _frameCount holds the current frame
+/// @param[io] io_tex is the ghost texture
+/// @param[in] _ghosts is a variable argument list that holds all ghosts to be drawn
+//--------------------------------------------------------------------------------------------------------
 void drawAllEnemies(SDL_Renderer *io_ren, struct timespec _frightenedClock, int _frameCount, SDL_Texture *io_tex, va_list _ghosts )
 {
   for ( int x = 0; x < 4; x++ )
@@ -975,10 +1211,21 @@ void drawAllEnemies(SDL_Renderer *io_ren, struct timespec _frightenedClock, int 
     }
   }
 }
-void drawGhost(SDL_Renderer *io_ren, SDL_Texture *io_tex, ghost _enemy, bool _frightened, struct timespec _fClock, int _ghostType, int _frameCount)
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function is used to draw a ghost
+/// @param[io] io_ren is the SDL_Renderer used to draw our graphics
+/// @param[io] io_tex is the ghost texture
+/// @param[in] _enemy is a copy of the current ghost to be drawn
+/// @param[in] _frightened tells us whether to draw the ghost as frightened or not
+/// @param[in] _frightenedClock holds the time spent frightend used to alternate firghtened textures
+/// @param[in] _ghostType tells the function which ghost to draw from the texture
+/// @param[io] _frameCount holds the current frame used to animate the ghost wiggle
+//--------------------------------------------------------------------------------------------------------
+void drawGhost(SDL_Renderer *io_ren, SDL_Texture *io_tex, ghost _enemy, bool _frightened, struct timespec _frightenedClock, int _ghostType, int _frameCount)
 {
   struct timespec start;
-  double diff = timeDiff(&start,_fClock);
+  double diff = timeDiff(&start,_frightenedClock);
   int desc = 0;
   int anim = 5*(g_c_blockSize*2);
   if ( (_frameCount/15) == 0 )
@@ -1008,6 +1255,14 @@ void drawGhost(SDL_Renderer *io_ren, SDL_Texture *io_tex, ghost _enemy, bool _fr
   }
   SDL_RenderCopy(io_ren, io_tex,&ghosty, &block);
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function is used to draw pacman
+/// @param[io] io_ren is the SDL_Renderer used to draw our graphics
+/// @param[io] io_tex is the pacman texture
+/// @param[in] _pac is a copy of pacman to be drawn
+/// @param[in] _frameCount is holds the current frame used to animate the pacman mouth
+//--------------------------------------------------------------------------------------------------------
 void drawPacman(SDL_Renderer *io_ren, SDL_Texture *io_tex, pacman _pac, int _frameCount)
 {
   int playSpeed;
@@ -1039,7 +1294,14 @@ void drawPacman(SDL_Renderer *io_ren, SDL_Texture *io_tex, pacman _pac, int _fra
   }
   SDL_RenderCopy(io_ren, io_tex,&pacBlock, &copyBlock);
 }
-void drawMaze(SDL_Renderer *io_ren, SDL_Texture *io_tex, SDL_Texture *io_wtex)
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function is used to draw the maze
+/// @param[io] io_ren is the SDL_Renderer used to draw our graphics
+/// @param[io] io_pillTex is the pills texture
+/// @param[io] io_wallTex is the walls texture
+//--------------------------------------------------------------------------------------------------------
+void drawMaze(SDL_Renderer *io_ren, SDL_Texture *io_pillTex, SDL_Texture *io_wallTex)
 {
   SDL_Rect block;
   SDL_Rect pill;
@@ -1070,14 +1332,14 @@ void drawMaze(SDL_Renderer *io_ren, SDL_Texture *io_tex, SDL_Texture *io_wtex)
         case (BLUE):
         {
           wall.x = g_c_blockSize*checkMazeBlock(j,i);
-          SDL_RenderCopy(io_ren, io_wtex, &wall, &block);
+          SDL_RenderCopy(io_ren, io_wallTex, &wall, &block);
           break;
         }
         case (RPILL):
         {
           pill.x = 0;
           pill.y = 0;
-          SDL_RenderCopy(io_ren, io_tex, &pill, &block);
+          SDL_RenderCopy(io_ren, io_pillTex, &pill, &block);
           break;
         }
         case (GATE):
@@ -1092,7 +1354,7 @@ void drawMaze(SDL_Renderer *io_ren, SDL_Texture *io_tex, SDL_Texture *io_wtex)
         {
           pill.x = g_c_blockSize;
           pill.y = 0;
-          SDL_RenderCopy(io_ren, io_tex, &pill, &block);
+          SDL_RenderCopy(io_ren, io_pillTex, &pill, &block);
           break;
         }
       }
@@ -1101,6 +1363,15 @@ void drawMaze(SDL_Renderer *io_ren, SDL_Texture *io_tex, SDL_Texture *io_wtex)
     }
   }
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function is used to draw the scores
+/// @param[io] io_ren is the SDL_Renderer used to draw our graphics
+/// @param[in] _position holds the x co-ordinate to start drawing from
+/// @param[in] _points holds the points to draw
+/// @param[io] io_text is a pointer to a char array containing the words to be drawn
+/// @param[io] io_sans is the font used to draw the score and words
+//--------------------------------------------------------------------------------------------------------
 void drawScore(SDL_Renderer* io_ren, int _position, int _points, const char *io_text, TTF_Font* io_sans)
 {
   char texPoints[1000];
@@ -1124,6 +1395,10 @@ void drawScore(SDL_Renderer* io_ren, int _position, int _points, const char *io_
   SDL_FreeSurface(surfaceMessage);
 }
 
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function traverses the map array and counts how many pills are left inside it
+//--------------------------------------------------------------------------------------------------------
 int pillCount()
 {
   int count = 0;
@@ -1139,6 +1414,11 @@ int pillCount()
   }
   return count;
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function reverses the input direction
+/// @param[in] _dir is used to find its opposite
+//--------------------------------------------------------------------------------------------------------
 int reverseDir(int _dir)
 {
   int rev = NONE;
@@ -1167,12 +1447,33 @@ int reverseDir(int _dir)
   }
   return rev;
 }
-double timeDiff(struct timespec *io_a, struct timespec _b)
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function takes calculates the difference between the current time and a given time
+/// @param[io] io_currentTime is used to store the time this difference was requested
+/// @param[in] _givenTime is the timer which the current time is compared against
+//--------------------------------------------------------------------------------------------------------
+double timeDiff(struct timespec *io_currentTime, struct timespec _givenTime)
 {
-  clock_gettime(CLOCK_REALTIME, io_a);
-  return (((*io_a).tv_sec - _b.tv_sec) + ( (*io_a).tv_nsec - _b.tv_nsec )/1E9);
+  clock_gettime(CLOCK_REALTIME, io_currentTime);
+  return (((*io_currentTime).tv_sec - _givenTime.tv_sec) + ( (*io_currentTime).tv_nsec - _givenTime.tv_nsec )/1E9);
 }
-void reset( bool *o_keyPressed, bool *o_begin, bool *o_chngDir, bool *o_frightened, bool *o_lifeDeduct,
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief This function is used to reset all variables to their default values when a level is complete or pacman dies
+/// @param[o] o_keyPressed tells us whether the user pressed a key this frame
+/// @param[o] o_begin will start the game when true
+/// @param[o] o_frightened tells us whether pacman has eaten a super pill
+/// @param[o] o_lifeDeduct tells the program to deduct a life
+/// @param[o] o_frameCount holds the current frame number
+/// @param[o] o_aiMode tells the ghosts whether to scatter or aim for their target
+/// @param[o] o_shadow is a pointer to the red ghost
+/// @param[o] o_speedy is a pointer to the pink ghost
+/// @param[o] o_bashful is a pointer to the blue ghost
+/// @param[o] o_pokey is a pointer to the orange ghost
+/// @param[o] o_pac is a pointer to pacman
+//--------------------------------------------------------------------------------------------------------
+void reset( bool *o_keyPressed, bool *o_begin, bool *o_frightened, bool *o_lifeDeduct,
             int *o_frameCount, int *o_aiMode, ghost *o_shadow,
             ghost *o_speedy, ghost *o_bashful, ghost *o_pokey, pacman *o_pac)
 {
@@ -1191,13 +1492,16 @@ void reset( bool *o_keyPressed, bool *o_begin, bool *o_chngDir, bool *o_frighten
 
   *o_keyPressed = false;
   *o_begin = false;
-  *o_chngDir = true;
   *o_frightened = false;
   *o_lifeDeduct = false;
   *o_frameCount = 0;
   *o_aiMode = 0;
 
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief This function is used to restore the map to its original state
+//--------------------------------------------------------------------------------------------------------
 void resetMap()
 {
   char originalMap[ROWS+1][COLS+1]={
@@ -1237,6 +1541,13 @@ void resetMap()
   };
   memcpy(map, originalMap, sizeof(map));
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function creates and returns an SDL_Texture from a given file path
+/// @param[const] c_path is a pointer to a char array that holds the file path
+/// @param[io] io_ren is the SDL_Renderer used to draw our graphics
+/// @param[io] io_image is the image used to create our texture
+//--------------------------------------------------------------------------------------------------------
 SDL_Texture *createTex(const char *c_path, SDL_Renderer *io_ren, SDL_Surface *io_image)
 {
   io_image=IMG_Load(c_path);
@@ -1251,6 +1562,14 @@ SDL_Texture *createTex(const char *c_path, SDL_Renderer *io_ren, SDL_Surface *io
   SDL_FreeSurface(io_image);
   return tex;
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function takes multiple file paths and creates an array of textures from them
+/// @param[in] _pathCount holds the number of paths and hence the size of the array
+/// @param[io] io_texArray is the array for the textures to be stored in
+/// @param[io] io_ren is the SDL_Renderer used to draw our graphics
+/// @param[io] io_image is the image used to create our texture
+//--------------------------------------------------------------------------------------------------------
 void createTexArray(int _pathCount, SDL_Texture* io_texArr[], SDL_Renderer *io_ren, SDL_Surface *io_image, ...)
 {
   va_list paths;
@@ -1263,6 +1582,16 @@ void createTexArray(int _pathCount, SDL_Texture* io_texArr[], SDL_Renderer *io_r
   va_end(paths);
 
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function creates a new ghost
+/// @param[in] _type tells us which ghost type to create
+/// @param[in] _startX is the starting x co-ordinate for the ghost
+/// @param[in] _startY is the starting y co-ordinate for the ghost
+/// @param[in] _scatX is the scatter x co-ordinate for the ghost
+/// @param[in] _scatY is the scatter y co-ordinate for the ghost
+/// @param[io] io_moveFunc is a function pointer to the move function of the ghost
+//--------------------------------------------------------------------------------------------------------
 ghost createGhost(int _type, int _startX, int _startY, int _scatX, int _scatY, void(*io_moveFunc)(void))
 {
   bool gate;
@@ -1282,6 +1611,11 @@ ghost createGhost(int _type, int _startX, int _startY, int _scatX, int _scatY, v
   return newGhost;
 
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function saves the score to a text file so that it can be displayed as the high score
+/// @param[in] _points are the points to be written to the text file
+//--------------------------------------------------------------------------------------------------------
 void saveScore(int _points)
 {
   FILE *f = fopen("highScore.txt", "w");
@@ -1293,6 +1627,10 @@ void saveScore(int _points)
   fprintf(f,"%d",_points);
   fclose(f);
 }
+
+//--------------------------------------------------------------------------------------------------------
+/// @brief this function retrieves the high score from the text file
+//--------------------------------------------------------------------------------------------------------
 int getScore()
 {
   FILE *f = fopen("highScore.txt", "r");
