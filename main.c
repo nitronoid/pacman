@@ -2,7 +2,8 @@
 ///  @file main.c
 ///  @brief This file holds the main body of code, containing all of the functions used for the pacman game.
 ///  @author Jack Diver
-///  @version 7.2 13 January 2017
+///  @version 7.2
+///  @date Last revision 13 January 2017 updated to NCCA coding standard
 ///  Initial version 3 November 2016
 
 #include <time.h>
@@ -89,7 +90,6 @@ int main()
     return EXIT_FAILURE;
   }
   // we are now going to create an SDL window
-
   SDL_Window *win = 0;
   win = SDL_CreateWindow("Pacman", 100, 100, WIDTH, HEIGHT+g_c_blockSize, SDL_WINDOW_SHOWN);
   if ( win == 0 )
@@ -109,28 +109,34 @@ int main()
   }
   SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
 
+  //load the font to draw text
   TTF_Font* Sans = TTF_OpenFont("/usr/share/fonts/gnu-free/FreeSans.ttf", 24);
+  //create an image to draw textures
   SDL_Surface * image = NULL;
+  //initialise the texture array
   SDL_Texture* texArr[7];
   createTexArray(7,texArr,ren,image,"pacsprite.png","pills.png","ghostSprites.png","startScreen.png","gameOver.png","pacDeath.png","wallSegs.png");
   bool quit=false;
 
+  //creat ghosts and pacman
   ghost shadow, speedy, bashful, pokey;
   pacman pac;
   bool keyPressed, begin, frightened, lifeDeduct;
   double diff;
   int frameCount, aiMode, lives = 3, level = 1;
+  //use reset function to assign default values
   reset(&keyPressed,&begin,&frightened,
         &lifeDeduct,&frameCount,&aiMode,&shadow,
         &speedy,&bashful,&pokey,&pac);
   int moveMode[7]={7,27,34,54,59,79,84};
+  //load times into clocks
   srand(time(NULL));
   struct timespec start, end, lEnd, frightenedClock;
   clock_gettime(CLOCK_REALTIME, &start);
   clock_gettime(CLOCK_REALTIME, &lEnd);
   score points = {0,0,0,0};
   int highScore = 0;
-
+  //start loop until the user quits
   while ( quit != true )
   {
     SDL_Event event;
@@ -148,9 +154,11 @@ int main()
       {
         switch ( event.key.keysym.sym )
         {
+        //quit if esc key pressed
           case SDLK_ESCAPE:
             quit=true;
             break;
+        //look for wasd and arrow keys to change pacmans direction
           case SDLK_UP:
           case SDLK_w:
           {
@@ -178,10 +186,13 @@ int main()
         }
       }
     }
-
+    //load highscore
     highScore = getScore();
+    //count pills
     int pills = pillCount();
+    //calculate current score from pills
     points.pills = (256 - pills)*10;
+    //if there are no pills move to next level
     if(pills <= 0)
     {
       level++;
@@ -192,28 +203,34 @@ int main()
             &speedy,&bashful,&pokey,&pac);
       resetMap();
     }
-
+    //check if ghosts are frightened
     setFrightened(&frightened, &shadow, &speedy, &bashful, &pokey, frightenedClock);
+    //check for any dead sprites
     checkDeaths(&pac,&shadow,&speedy,&bashful,&pokey,&frameCount, &points);
+    //check whether pacman has eaten a pill
     checkPill(pac.x, pac.y, &frightened, &frightenedClock, aiMode, &moveMode[0]);
-
+    //if a key has not been pressed reset the start clock
     if ( !begin )
     {
       clock_gettime(CLOCK_REALTIME, &start);
     }
+    //if a key has been pressed we begin
     else if ( pac.alive )
     {
       lifeDeduct = true;
+      //move pacman
       pac = movePac(pac, keyPressed,frameCount);
-
+      //calculate the time since the game started
       diff = timeDiff(&end,start);
+      //choose a movement mode for the ghosts
       if ( (diff >= moveMode[aiMode]) && (aiMode < 7) )
       {
         aiMode++;
       }
-
+      //move all ghosts
       shadow = moveGhost(shadow,shadow,pac,aiMode,frameCount);
       speedy = moveGhost(speedy,shadow,pac,aiMode,frameCount);
+      //only move blue and orange if the pills have dropped to a certain limit
       if ( (pills <= 228) && !frightened )
       {
         bashful = moveGhost(bashful,shadow,pac,aiMode,frameCount);
@@ -223,8 +240,10 @@ int main()
         pokey = moveGhost(pokey,shadow,pac,aiMode,frameCount);
       }
     }
+    //if pacman is dead deduct a life
     else if ( lives > 0 )
     {
+      //after two seconds we reset
       if ( lifeDeduct )
       {
         clock_gettime(CLOCK_REALTIME, &lEnd);
@@ -239,6 +258,7 @@ int main()
       }
       lifeDeduct = false;
     }
+    //update frame count
     if(pac.alive || frameCount < 29)
     {
       frameCount++;
@@ -247,14 +267,17 @@ int main()
         frameCount = 0;
       }
     }
+    //calculate score
     points.total = points.ghosts + points.pills + points.lastLevel;
     if(points.total > highScore)
     {
+      //save current score as new high score if it is larger than the old high score
       saveScore(points.total);
     }
+    //draw the screen
     drawScreen(ren,texArr,pac,frameCount,frightenedClock,points.total,highScore,lives,begin,Sans,pokey,speedy,bashful,shadow);
-
   }
+  //quit the program
   SDL_Quit();
   return EXIT_SUCCESS;
 }
@@ -1067,16 +1090,20 @@ ghost moveSpeedy(ghost io_enemy, pacman _target)
 //--------------------------------------------------------------------------------------------------------
 void moveSprite(int *io_x, int *io_y, int _dir, bool _pac, bool _frightened, bool _alive, int _frameCount)
 {
+  // we calculate the step from out two constants
   int step = g_c_blockSize*g_c_scale;
+  //if it is a ghost we modify the step
   if ( !_pac )
   {
     if ( _frightened || (_frameCount%2 == 0) )
       step-=1;
   }
+  //if the sprite is dead it moves faster
   if ( !_alive )
   {
     step++;
   }
+  //add or subtract the step from the appropriate co-ordinate based on the direction
   switch (_dir)
   {
     case UP:
@@ -1119,32 +1146,42 @@ void moveSprite(int *io_x, int *io_y, int _dir, bool _pac, bool _frightened, boo
 void drawScreen(SDL_Renderer* io_ren, SDL_Texture* _texArr[], pacman _pac, int _frameCount,
                 struct timespec _frightenedClock, int _points, int _highScore, int _lives, bool _begin,TTF_Font* io_sans, ...)
 {
+  //this is the list of ghosts to draw
   va_list ghostArgs;
   va_start ( ghostArgs, io_sans );
+  //clear the screen
   SDL_SetRenderDrawColor(io_ren, 0, 0, 0, 255);
   SDL_RenderClear(io_ren);
+  //draw the maze
   drawMaze(io_ren, _texArr[1], _texArr[6]);
+  //if pacman is alive draw using the normal texture and draw ghosts
   if ( _pac.alive )
   {
     drawAllEnemies(io_ren,_frightenedClock, _frameCount, _texArr[2],ghostArgs);
     drawPacman(io_ren, _texArr[0], _pac, _frameCount);
   }
+  //if pacman is dead and with remaining lives we draw the death animation
   else if ( _lives > 0 )
   {
     drawPacman(io_ren, _texArr[5], _pac, _frameCount);
   }
+  //if there are no remaining lives we draw game over and the death animation
   if ( _lives <= 0 )
   {
     drawGameOver(io_ren,_texArr[4]);
     drawPacman(io_ren, _texArr[5], _pac, _frameCount);
   }
+  //if the game has not yet started we draw the start screen
   if ( !_begin )
   {
     drawStart(io_ren,_texArr[3]);
   }
+  //draw the scores
   drawScore(io_ren, 10, _points, "Score: ", io_sans);
   drawScore(io_ren, 200, _highScore, "High score: ", io_sans);
+  //present the render
   SDL_RenderPresent(io_ren);
+  //end the list of ghosts
   va_end ( ghostArgs );
 }
 
@@ -1155,16 +1192,19 @@ void drawScreen(SDL_Renderer* io_ren, SDL_Texture* _texArr[], pacman _pac, int _
 //--------------------------------------------------------------------------------------------------------
 void drawStart(SDL_Renderer *io_ren, SDL_Texture *io_tex)
 {
+  //create a block to contain the image
   SDL_Rect screenBlock;
   screenBlock.h = 775;
   screenBlock.w = 700;
   screenBlock.x=0;
   screenBlock.y=0;
+  //create a block to copy this image into
   SDL_Rect img;
   img.x=0;
   img.y=0;
   img.w = 700;
   img.h = 775;
+  //render the image
   SDL_RenderCopy(io_ren,io_tex,&img,&screenBlock);
 }
 
@@ -1175,16 +1215,19 @@ void drawStart(SDL_Renderer *io_ren, SDL_Texture *io_tex)
 //--------------------------------------------------------------------------------------------------------
 void drawGameOver(SDL_Renderer *io_ren, SDL_Texture *io_tex)
 {
+  //create a block to contain the image
   SDL_Rect screenBlock;
   screenBlock.h = 775;
   screenBlock.w = 700;
   screenBlock.x=0;
   screenBlock.y=0;
+  //create a block to copy this image into
   SDL_Rect img;
   img.x=0;
   img.y=0;
   img.w = 700;
   img.h = 775;
+  //render the image
   SDL_RenderCopy(io_ren,io_tex,&img,&screenBlock);
 }
 
@@ -1198,9 +1241,12 @@ void drawGameOver(SDL_Renderer *io_ren, SDL_Texture *io_tex)
 //--------------------------------------------------------------------------------------------------------
 void drawAllEnemies(SDL_Renderer *io_ren, struct timespec _frightenedClock, int _frameCount, SDL_Texture *io_tex, va_list _ghosts )
 {
+  //for all ghosts in the list we draw them
   for ( int x = 0; x < 4; x++ )
   {
+    //get next ghost
     ghost temp = va_arg ( _ghosts, ghost );
+    //choose the living or dead texture
     if ( temp.alive )
     {
       drawGhost(io_ren, io_tex, temp, temp.frightened, _frightenedClock,(x+1),_frameCount);
@@ -1224,24 +1270,34 @@ void drawAllEnemies(SDL_Renderer *io_ren, struct timespec _frightenedClock, int 
 //--------------------------------------------------------------------------------------------------------
 void drawGhost(SDL_Renderer *io_ren, SDL_Texture *io_tex, ghost _enemy, bool _frightened, struct timespec _frightenedClock, int _ghostType, int _frameCount)
 {
+  //obtain the time since being frightened started
   struct timespec start;
   double diff = timeDiff(&start,_frightenedClock);
   int desc = 0;
+  //anim is a value that is used to wiggle the ghosts on alternating frames
   int anim = 5*(g_c_blockSize*2);
   if ( (_frameCount/15) == 0 )
+  {
+    //half the time this value is zero the other half
     anim = 0;
+  }
+  //create a block to contain the image
   SDL_Rect block;
   block.x=_enemy.x;
   block.y=_enemy.y;
   block.w=g_c_blockSize-1;
   block.h=g_c_blockSize-1;
+  //create a block to copy this image into
   SDL_Rect ghosty;
+  //obtain the correct sprite
   ghosty.w=g_c_blockSize*2;
   ghosty.h=g_c_blockSize*2;
   ghosty.x=_ghostType*(g_c_blockSize*2)+anim;
   ghosty.y=_enemy.dir*(g_c_blockSize*2);
+  //if the ghost is frightened we need to choose a frightened sprite texture
   if ( _frightened )
   {
+    //if the time is in the last 3 seconds of being frightened we alternate between blue and white
     desc = (int)(diff*10)%2;
     ghosty.x=5*(g_c_blockSize*2)+anim;
     if ( (diff >= 5) && (desc != 1) )
@@ -1253,6 +1309,7 @@ void drawGhost(SDL_Renderer *io_ren, SDL_Texture *io_tex, ghost _enemy, bool _fr
       ghosty.y=g_c_blockSize*2;
     }
   }
+  //render the image
   SDL_RenderCopy(io_ren, io_tex,&ghosty, &block);
 }
 
@@ -1265,6 +1322,7 @@ void drawGhost(SDL_Renderer *io_ren, SDL_Texture *io_tex, ghost _enemy, bool _fr
 //--------------------------------------------------------------------------------------------------------
 void drawPacman(SDL_Renderer *io_ren, SDL_Texture *io_tex, pacman _pac, int _frameCount)
 {
+  //the dead and alive pacman play animations at different speeds
   int playSpeed;
   if(_pac.alive)
   {
@@ -1274,24 +1332,29 @@ void drawPacman(SDL_Renderer *io_ren, SDL_Texture *io_tex, pacman _pac, int _fra
   {
     playSpeed = 3;
   }
+  //create a block to contain the image
   SDL_Rect copyBlock;
   copyBlock.x=_pac.x;
   copyBlock.y=_pac.y;
   copyBlock.w=g_c_blockSize;
   copyBlock.h=g_c_blockSize;
+  //create a block to copy this image into
   SDL_Rect pacBlock;
   pacBlock.w=g_c_blockSize*2;
   pacBlock.h=g_c_blockSize*2;
+  //if the pacman isn't moving we set it to the top left sprite
   if ( _pac.dir == NONE )
   {
     pacBlock.x=0;
     pacBlock.y=0;
   }
+  //if it is we use the fram count and direction to choose the correct sprite
   else
   {
     pacBlock.x=_pac.dir*(g_c_blockSize*2);
     pacBlock.y=(_frameCount/playSpeed)*(g_c_blockSize*2);
   }
+  //render the image
   SDL_RenderCopy(io_ren, io_tex,&pacBlock, &copyBlock);
 }
 
@@ -1303,6 +1366,7 @@ void drawPacman(SDL_Renderer *io_ren, SDL_Texture *io_tex, pacman _pac, int _fra
 //--------------------------------------------------------------------------------------------------------
 void drawMaze(SDL_Renderer *io_ren, SDL_Texture *io_pillTex, SDL_Texture *io_wallTex)
 {
+  //create a rect for each object to be drawn
   SDL_Rect block;
   SDL_Rect pill;
   SDL_Rect wall;
@@ -1312,7 +1376,7 @@ void drawMaze(SDL_Renderer *io_ren, SDL_Texture *io_pillTex, SDL_Texture *io_wal
   wall.h = 25;
   wall.y = 0;
   wall.x = 0;
-
+  //traverse the entire map array and select the correct texture to be drawn
   for(int i = 1; i < ROWS; ++i)
   {
     for(int j = 1; j < COLS; ++j)
@@ -1358,8 +1422,6 @@ void drawMaze(SDL_Renderer *io_ren, SDL_Texture *io_pillTex, SDL_Texture *io_wal
           break;
         }
       }
-
-
     }
   }
 }
@@ -1374,25 +1436,37 @@ void drawMaze(SDL_Renderer *io_ren, SDL_Texture *io_pillTex, SDL_Texture *io_wal
 //--------------------------------------------------------------------------------------------------------
 void drawScore(SDL_Renderer* io_ren, int _position, int _points, const char *io_text, TTF_Font* io_sans)
 {
+  //create a char array to hold the score
   char texPoints[1000];
+  //insert the score into the array
   sprintf(texPoints, "%d", _points);
+  //get the number of digits in the score
   int len = strlen(texPoints);
+  //get the number of chars in the given word
   int textLen = strlen(io_text)/2;
-  SDL_Color White = {255, 255, 255, 255};
-  SDL_Surface* surfaceMessage = TTF_RenderText_Solid(io_sans, io_text, White);
-  SDL_Texture* Message = SDL_CreateTextureFromSurface(io_ren, surfaceMessage);
-  SDL_Rect Message_rect;
-  Message_rect.x = _position;
-  Message_rect.y = HEIGHT-5;
-  Message_rect.w = g_c_blockSize*textLen;
-  Message_rect.h = g_c_blockSize*1.2;
-  SDL_RenderCopy(io_ren, Message, NULL, &Message_rect);
-  Message_rect.x += textLen*g_c_blockSize;
-  Message_rect.w = g_c_blockSize*len / 2;
-  surfaceMessage = TTF_RenderText_Solid(io_sans, texPoints, White);
-  Message = SDL_CreateTextureFromSurface(io_ren, surfaceMessage);
-  SDL_RenderCopy(io_ren, Message, NULL, &Message_rect);
-  SDL_FreeSurface(surfaceMessage);
+  //set the text colour
+  SDL_Color white = {255, 255, 255, 255};
+  //creat a surface from the word
+  SDL_Surface* surfaceWord = TTF_RenderText_Solid(io_sans, io_text, white);
+  //create a message from the surface
+  SDL_Texture* word = SDL_CreateTextureFromSurface(io_ren, surfaceWord);
+  //create a rect to hold the message
+  SDL_Rect text;
+  text.x = _position;
+  text.y = HEIGHT-5;
+  text.w = g_c_blockSize*textLen;
+  text.h = g_c_blockSize*1.2;
+  //render the word
+  SDL_RenderCopy(io_ren, word, NULL, &text);
+  //move the block to a new position dependent on the lenght of the word
+  text.x += textLen*g_c_blockSize;
+  text.w = g_c_blockSize*len / 2;
+  //modify the message to hold the score
+  surfaceWord = TTF_RenderText_Solid(io_sans, texPoints, white);
+  word = SDL_CreateTextureFromSurface(io_ren, surfaceWord);
+  //draw the score
+  SDL_RenderCopy(io_ren, word, NULL, &text);
+  SDL_FreeSurface(surfaceWord);
 }
 
 
@@ -1401,6 +1475,7 @@ void drawScore(SDL_Renderer* io_ren, int _position, int _points, const char *io_
 //--------------------------------------------------------------------------------------------------------
 int pillCount()
 {
+  //traverse the whole map array and count the number of pills
   int count = 0;
   for(int i = 0; i < ROWS; ++i)
   {
@@ -1421,6 +1496,7 @@ int pillCount()
 //--------------------------------------------------------------------------------------------------------
 int reverseDir(int _dir)
 {
+  //using the given direction, return the opposite direction
   int rev = NONE;
   switch (_dir)
   {
@@ -1455,7 +1531,9 @@ int reverseDir(int _dir)
 //--------------------------------------------------------------------------------------------------------
 double timeDiff(struct timespec *io_currentTime, struct timespec _givenTime)
 {
+  //assign the current time
   clock_gettime(CLOCK_REALTIME, io_currentTime);
+  //calculate and return the difference
   return (((*io_currentTime).tv_sec - _givenTime.tv_sec) + ( (*io_currentTime).tv_nsec - _givenTime.tv_nsec )/1E9);
 }
 
@@ -1477,7 +1555,7 @@ void reset( bool *o_keyPressed, bool *o_begin, bool *o_frightened, bool *o_lifeD
             int *o_frameCount, int *o_aiMode, ghost *o_shadow,
             ghost *o_speedy, ghost *o_bashful, ghost *o_pokey, pacman *o_pac)
 {
-
+  //reset all of the variables to their default values
   *o_shadow = createGhost(SHADOW,14,11,30,0,(void(*)(void))moveShadow);
   *o_speedy = createGhost(SPEEDY,13,13,0,0,(void(*)(void))moveSpeedy);
   *o_bashful = createGhost(BASHFUL,14,13,30,28,(void(*)(void))moveBashful);
@@ -1504,7 +1582,8 @@ void reset( bool *o_keyPressed, bool *o_begin, bool *o_frightened, bool *o_lifeD
 //--------------------------------------------------------------------------------------------------------
 void resetMap()
 {
-  char originalMap[ROWS+1][COLS+1]={
+  //create a new char array with the original values to be reassigned to the map
+  char const originalMap[ROWS+1][COLS+1]={
       {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,},
       {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,},
       {1,1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,},
@@ -1539,6 +1618,7 @@ void resetMap()
       {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,},
       {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,},
   };
+  //copy the values into the map array
   memcpy(map, originalMap, sizeof(map));
 }
 
@@ -1550,15 +1630,16 @@ void resetMap()
 //--------------------------------------------------------------------------------------------------------
 SDL_Texture *createTex(const char *c_path, SDL_Renderer *io_ren, SDL_Surface *io_image)
 {
+  //load the image from the given path
   io_image=IMG_Load(c_path);
   if ( !io_image )
   {
     printf("IMG_Load: %s\n", IMG_GetError());
-    //return EXIT_FAILURE;
   }
-
-  SDL_Texture *tex = 0;
+  //create a new texture from the image
+  SDL_Texture *tex;
   tex = SDL_CreateTextureFromSurface(io_ren, io_image);
+  //free the image for later use
   SDL_FreeSurface(io_image);
   return tex;
 }
@@ -1572,15 +1653,17 @@ SDL_Texture *createTex(const char *c_path, SDL_Renderer *io_ren, SDL_Surface *io
 //--------------------------------------------------------------------------------------------------------
 void createTexArray(int _pathCount, SDL_Texture* io_texArr[], SDL_Renderer *io_ren, SDL_Surface *io_image, ...)
 {
+  //get the list of paths
   va_list paths;
   va_start(paths, io_image);
+  //for every path create a new texture
   for(int i = 0; i < _pathCount; ++i)
   {
     const char *path = va_arg(paths, const char *);
     io_texArr[i] = createTex(path, io_ren, io_image);
   }
+  //end the list
   va_end(paths);
-
 }
 
 //--------------------------------------------------------------------------------------------------------
@@ -1594,8 +1677,9 @@ void createTexArray(int _pathCount, SDL_Texture* io_texArr[], SDL_Renderer *io_r
 //--------------------------------------------------------------------------------------------------------
 ghost createGhost(int _type, int _startX, int _startY, int _scatX, int _scatY, void(*io_moveFunc)(void))
 {
+  //if the ghost starts in the home area set gate to true
   bool gate;
-  if (  ((10 < _startX) && (_startX < 19)) && ((12 < _startY) && (_startY < 18)) )
+  if ( ((10 < _startX) && (_startX < 19)) && ((12 < _startY) && (_startY < 18)) )
   {
     gate = true;
   }
@@ -1603,10 +1687,12 @@ ghost createGhost(int _type, int _startX, int _startY, int _scatX, int _scatY, v
   {
     gate = false;
   }
+  //scale the values up by blocksize to get pixels
   _startX = _startX * g_c_blockSize;
   _startY = _startY * g_c_blockSize;
   _scatX = _scatX * g_c_blockSize;
   _scatY = _scatY * g_c_blockSize;
+  //assign the given values
   ghost newGhost = {_type,_startX,_startY,UP,gate,true,0,0,_scatX,_scatY,false,true,false,(void(*)(void))(io_moveFunc)};
   return newGhost;
 
@@ -1618,13 +1704,16 @@ ghost createGhost(int _type, int _startX, int _startY, int _scatX, int _scatY, v
 //--------------------------------------------------------------------------------------------------------
 void saveScore(int _points)
 {
+  //open the file
   FILE *f = fopen("highScore.txt", "w");
   if (f == NULL)
   {
       printf("Error opening file!\n");
       exit(EXIT_FAILURE);
   }
+  //print the values to the file
   fprintf(f,"%d",_points);
+  //close the file
   fclose(f);
 }
 
@@ -1633,6 +1722,7 @@ void saveScore(int _points)
 //--------------------------------------------------------------------------------------------------------
 int getScore()
 {
+  //open the file
   FILE *f = fopen("highScore.txt", "r");
   int points = 0;
   if (f == NULL)
@@ -1640,7 +1730,9 @@ int getScore()
       printf("Error opening file!\n");
       exit(EXIT_FAILURE);
   }
+  //read the values from the file
   fscanf(f,"%d",&points);
+  //close the file
   fclose(f);
   return points;
 }
